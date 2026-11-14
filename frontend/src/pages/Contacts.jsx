@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
+import Pagination from '../components/common/Pagination';
 import { api } from '../services/api';
 
 const TABS = ['Subscribers', 'Lists', 'Suppression List'];
@@ -105,6 +106,12 @@ export default function Contacts() {
   const [importStep, setImportStep] = useState(1); // 1: Select List & File, 2: Map & Preview
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Pagination states for Subscribers and Suppression List
+  const [subscribersPage, setSubscribersPage] = useState(1);
+  const [subscribersPageSize, setSubscribersPageSize] = useState(25);
+  const [suppressedPage, setSuppressedPage] = useState(1);
+  const [suppressedPageSize, setSuppressedPageSize] = useState(25);
 
   const loadData = async () => {
     setLoading(true);
@@ -312,6 +319,27 @@ export default function Contacts() {
     (c.company || '').toLowerCase().includes(search.toLowerCase())
   );
 
+  // Pagination for Subscribers
+  const totalSubscribersPages = Math.ceil(filtered.length / subscribersPageSize) || 1;
+  const paginatedSubscribers = filtered.slice(
+    (subscribersPage - 1) * subscribersPageSize,
+    subscribersPage * subscribersPageSize
+  );
+
+  // Pagination for Suppressed
+  const filteredSuppressed = suppressed.filter(s => (s.email || '').toLowerCase().includes(search.toLowerCase()));
+  const totalSuppressedPages = Math.ceil(filteredSuppressed.length / suppressedPageSize) || 1;
+  const paginatedSuppressed = filteredSuppressed.slice(
+    (suppressedPage - 1) * suppressedPageSize,
+    suppressedPage * suppressedPageSize
+  );
+
+  // Reset page when search or tab changes
+  useEffect(() => {
+    setSubscribersPage(1);
+    setSuppressedPage(1);
+  }, [search, activeTab]);
+
   return (
     <div className="p-5 space-y-4">
       {/* Header */}
@@ -374,7 +402,7 @@ export default function Contacts() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map(c => (
+              {paginatedSubscribers.map(c => (
                 <tr key={c.id} className="border-b border-gray-50 hover:bg-blue-50/30">
                   <td className="px-4 py-2.5"><input type="checkbox" className="w-3 h-3" /></td>
                   <td className="px-3 py-2.5">
@@ -482,7 +510,7 @@ export default function Contacts() {
               </tr>
             </thead>
             <tbody>
-              {suppressed.map((s, i) => (
+              {paginatedSuppressed.map((s, i) => (
                 <tr key={i} className="border-b border-gray-50">
                   <td className="px-4 py-2.5 text-xs font-mono text-red-600">{s.email}</td>
                   <td className="px-4 py-2.5 text-xs text-gray-600">{s.reason}</td>
@@ -504,15 +532,45 @@ export default function Contacts() {
         )}
 
         {/* Pagination footer */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-t border-gray-100">
-          <span className="text-xs text-gray-500">
-            {activeTab === 'Lists' 
-              ? `Showing ${contactLists.length} list${contactLists.length === 1 ? '' : 's'}`
-              : activeTab === 'Suppression List'
-              ? `Showing ${suppressed.length} suppressed contact${suppressed.length === 1 ? '' : 's'}`
-              : `Showing ${filtered.length} contact${filtered.length === 1 ? '' : 's'}`}
-          </span>
-        </div>
+        {activeTab === 'Subscribers' && (
+          <Pagination
+            currentPage={subscribersPage}
+            totalPages={totalSubscribersPages}
+            totalItems={filtered.length}
+            pageSize={subscribersPageSize}
+            onPageChange={setSubscribersPage}
+            onPageSizeChange={size => {
+              setSubscribersPageSize(size);
+              setSubscribersPage(1);
+            }}
+            pageSizeOptions={[25, 50, 100, 200]}
+            itemName="subscribers"
+          />
+        )}
+
+        {activeTab === 'Suppression List' && (
+          <Pagination
+            currentPage={suppressedPage}
+            totalPages={totalSuppressedPages}
+            totalItems={filteredSuppressed.length}
+            pageSize={suppressedPageSize}
+            onPageChange={setSuppressedPage}
+            onPageSizeChange={size => {
+              setSuppressedPageSize(size);
+              setSuppressedPage(1);
+            }}
+            pageSizeOptions={[25, 50, 100]}
+            itemName="suppressed contacts"
+          />
+        )}
+
+        {activeTab === 'Lists' && (
+          <div className="flex items-center justify-between px-4 py-2.5 border-t border-gray-100 bg-white">
+            <span className="text-xs text-gray-500">
+              Showing <span className="font-semibold text-gray-700">{contactLists.length}</span> list{contactLists.length === 1 ? '' : 's'}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* View List Contacts Modal */}

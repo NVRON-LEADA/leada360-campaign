@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Filter, MoreHorizontal, Eye, Edit, Trash2, Copy, RefreshCw, Send } from 'lucide-react';
 import StatusBadge from '../components/common/StatusBadge';
+import Pagination from '../components/common/Pagination';
 import { api } from '../services/api';
 
 const TABS = ['All', 'Sent', 'Scheduled', 'Processing', 'Draft', 'A/B Testing'];
@@ -11,6 +12,10 @@ export default function Campaigns({ onCreateCampaign, onEditCampaign, setActiveP
   const [activeTab, setActiveTab] = useState('All');
   const [search, setSearch] = useState('');
   const [openMenu, setOpenMenu] = useState(null);
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const fetchCampaigns = async () => {
     setLoading(true);
@@ -54,6 +59,11 @@ export default function Campaigns({ onCreateCampaign, onEditCampaign, setActiveP
   useEffect(() => {
     fetchCampaigns();
   }, []);
+
+  // Reset to first page when filtering or searching
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, search]);
 
   const handleLaunchCampaign = async (campaignOrId, e) => {
     e.stopPropagation();
@@ -121,6 +131,10 @@ export default function Campaigns({ onCreateCampaign, onEditCampaign, setActiveP
     return matchTab && matchSearch;
   });
 
+  // Calculate paginated slice
+  const totalPages = Math.ceil(filtered.length / pageSize) || 1;
+  const paginatedCampaigns = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   return (
     <div className="p-5 space-y-4">
       {/* Header */}
@@ -140,7 +154,7 @@ export default function Campaigns({ onCreateCampaign, onEditCampaign, setActiveP
       </div>
 
       {/* Tabs + Search */}
-      <div className="app-card">
+      <div className="app-card overflow-hidden">
         <div className="flex items-center justify-between border-b border-gray-100 px-2">
           <div className="flex">
             {TABS.map(t => (
@@ -164,98 +178,114 @@ export default function Campaigns({ onCreateCampaign, onEditCampaign, setActiveP
         </div>
 
         {/* Table */}
-        <table className="w-full">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="w-8 px-4 py-2"><input type="checkbox" className="w-3 h-3" /></th>
-              {['Campaign Name', 'Status', 'Recipients', 'Open %', 'Click %', 'Bounce %', 'Sent At', 'Actions'].map(h => (
-                <th key={h} className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(c => (
-              <tr key={c.id} className="border-b border-gray-50 hover:bg-blue-50/30 cursor-pointer group">
-                <td className="px-4 py-2.5"><input type="checkbox" className="w-3 h-3" /></td>
-                <td className="px-3 py-2.5" onClick={() => { setSelectedCampaign(c); setActivePage('analytics'); }}>
-                  <div className="text-xs font-medium text-blue-600 hover:underline">{c.name}</div>
-                  <div className="text-[11px] text-gray-400 mt-0.5 truncate max-w-xs">{c.subject}</div>
-                </td>
-                <td className="px-3 py-2.5"><StatusBadge status={c.status} /></td>
-                <td className="px-3 py-2.5 text-xs text-gray-700 font-medium">{(c.recipients || 0).toLocaleString()}</td>
-                <td className="px-3 py-2.5 text-xs text-gray-700">
-                  {c.status.toLowerCase() === 'draft' ? (
-                    <span className="text-gray-300">—</span>
-                  ) : (
-                    <span className="text-green-700 font-semibold">{c.openRate}%</span>
-                  )}
-                </td>
-                <td className="px-3 py-2.5 text-xs text-gray-700">
-                  {c.status.toLowerCase() === 'draft' ? (
-                    <span className="text-gray-300">—</span>
-                  ) : (
-                    <span className="text-blue-700 font-semibold">{c.clickRate}%</span>
-                  )}
-                </td>
-                <td className="px-3 py-2.5 text-xs text-gray-700">
-                  {c.status.toLowerCase() === 'draft' ? (
-                    <span className="text-gray-300">—</span>
-                  ) : (
-                    <span className="text-gray-600">{c.bounceRate}%</span>
-                  )}
-                </td>
-                <td className="px-3 py-2.5 text-xs text-gray-500">{c.sentAt || '—'}</td>
-                <td className="px-3 py-2.5 relative">
-                  <div className="flex items-center gap-1">
-                    {c.status.toLowerCase() === 'draft' && (
-                      <button
-                        onClick={(e) => handleLaunchCampaign(c, e)}
-                        className="px-2 py-0.5 text-[10px] font-medium bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1"
-                        title="Launch now"
-                      >
-                        <Send size={10} /> Send
-                      </button>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100">
+                <th className="w-8 px-4 py-2"><input type="checkbox" className="w-3 h-3" /></th>
+                {['Campaign Name', 'Status', 'Recipients', 'Open %', 'Click %', 'Bounce %', 'Sent At', 'Actions'].map(h => (
+                  <th key={h} className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedCampaigns.map(c => (
+                <tr key={c.id} className="border-b border-gray-50 hover:bg-blue-50/30 cursor-pointer group">
+                  <td className="px-4 py-2.5"><input type="checkbox" className="w-3 h-3" /></td>
+                  <td className="px-3 py-2.5" onClick={() => { setSelectedCampaign(c); setActivePage('analytics'); }}>
+                    <div className="text-xs font-medium text-blue-600 hover:underline">{c.name}</div>
+                    <div className="text-[11px] text-gray-400 mt-0.5 truncate max-w-xs">{c.subject}</div>
+                  </td>
+                  <td className="px-3 py-2.5"><StatusBadge status={c.status} /></td>
+                  <td className="px-3 py-2.5 text-xs text-gray-700 font-medium">{(c.recipients || 0).toLocaleString()}</td>
+                  <td className="px-3 py-2.5 text-xs text-gray-700">
+                    {c.status.toLowerCase() === 'draft' ? (
+                      <span className="text-gray-300">—</span>
+                    ) : (
+                      <span className="text-green-700 font-semibold">{c.openRate}%</span>
                     )}
-                    <button onClick={e => { e.stopPropagation(); setOpenMenu(openMenu === c.id ? null : c.id); }}
-                      className="p-1 hover:bg-gray-100 rounded text-gray-400">
-                      <MoreHorizontal size={14} />
-                    </button>
-                  </div>
-                  {openMenu === c.id && (
-                    <div 
-                      className="absolute right-4 top-8 bg-white border border-gray-200 rounded shadow-lg py-1 z-20 w-36 text-xs"
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <button onClick={() => { setSelectedCampaign(c); setActivePage('analytics'); setOpenMenu(null); }}
-                        className="w-full text-left px-3 py-1.5 hover:bg-gray-50 flex items-center gap-2 text-gray-700">
-                        <Eye size={12} /> View Report
-                      </button>
-                      <button onClick={(e) => handleEdit(c, e)}
-                        className="w-full text-left px-3 py-1.5 hover:bg-gray-50 flex items-center gap-2 text-gray-700">
-                        <Edit size={12} /> Edit
-                      </button>
-                      <button onClick={(e) => handleCloneCampaign(c, e)}
-                        className="w-full text-left px-3 py-1.5 hover:bg-gray-50 flex items-center gap-2 text-gray-700">
-                        <Copy size={12} /> Clone
-                      </button>
-                      <button onClick={(e) => handleDeleteCampaign(c.id, e)}
-                        className="w-full text-left px-3 py-1.5 hover:bg-red-50 flex items-center gap-2 text-red-600 font-medium">
-                        <Trash2 size={12} /> Delete
+                  </td>
+                  <td className="px-3 py-2.5 text-xs text-gray-700">
+                    {c.status.toLowerCase() === 'draft' ? (
+                      <span className="text-gray-300">—</span>
+                    ) : (
+                      <span className="text-blue-700 font-semibold">{c.clickRate}%</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2.5 text-xs text-gray-700">
+                    {c.status.toLowerCase() === 'draft' ? (
+                      <span className="text-gray-300">—</span>
+                    ) : (
+                      <span className="text-gray-600">{c.bounceRate}%</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2.5 text-xs text-gray-500">{c.sentAt || '—'}</td>
+                  <td className="px-3 py-2.5 relative">
+                    <div className="flex items-center gap-1">
+                      {c.status.toLowerCase() === 'draft' && (
+                        <button
+                          onClick={(e) => handleLaunchCampaign(c, e)}
+                          className="px-2 py-0.5 text-[10px] font-medium bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1"
+                          title="Launch now"
+                        >
+                          <Send size={10} /> Send
+                        </button>
+                      )}
+                      <button onClick={e => { e.stopPropagation(); setOpenMenu(openMenu === c.id ? null : c.id); }}
+                        className="p-1 hover:bg-gray-100 rounded text-gray-400">
+                        <MoreHorizontal size={14} />
                       </button>
                     </div>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={9} className="py-8 text-center text-xs text-gray-400">
-                  {loading ? 'Connecting to backend API...' : 'No campaigns found.'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                    {openMenu === c.id && (
+                      <div 
+                        className="absolute right-4 top-8 bg-white border border-gray-200 rounded shadow-lg py-1 z-20 w-36 text-xs"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <button onClick={() => { setSelectedCampaign(c); setActivePage('analytics'); setOpenMenu(null); }}
+                          className="w-full text-left px-3 py-1.5 hover:bg-gray-50 flex items-center gap-2 text-gray-700">
+                          <Eye size={12} /> View Report
+                        </button>
+                        <button onClick={(e) => handleEdit(c, e)}
+                          className="w-full text-left px-3 py-1.5 hover:bg-gray-50 flex items-center gap-2 text-gray-700">
+                          <Edit size={12} /> Edit
+                        </button>
+                        <button onClick={(e) => handleCloneCampaign(c, e)}
+                          className="w-full text-left px-3 py-1.5 hover:bg-gray-50 flex items-center gap-2 text-gray-700">
+                          <Copy size={12} /> Clone
+                        </button>
+                        <button onClick={(e) => handleDeleteCampaign(c.id, e)}
+                          className="w-full text-left px-3 py-1.5 hover:bg-red-50 flex items-center gap-2 text-red-600 font-medium">
+                          <Trash2 size={12} /> Delete
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="py-8 text-center text-xs text-gray-400">
+                    {loading ? 'Connecting to backend API...' : 'No campaigns found.'}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Dynamic Pagination Bar */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filtered.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={size => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
+          itemName="campaigns"
+        />
       </div>
     </div>
   );
