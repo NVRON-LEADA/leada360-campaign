@@ -13,6 +13,14 @@ class CampaignViewSet(viewsets.ModelViewSet):
     serializer_class = CampaignSerializer
 
     def get_queryset(self):
+        # Auto-trigger any scheduled campaigns that have reached their scheduled_at time
+        try:
+            from .tasks import check_and_dispatch_scheduled_campaigns
+            check_and_dispatch_scheduled_campaigns()
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Auto-dispatch check warning: {e}")
+
         qs = super().get_queryset()
         status_param = self.request.query_params.get('status')
         if status_param:
@@ -159,6 +167,51 @@ class CampaignViewSet(viewsets.ModelViewSet):
         return Response({
             'status': 'completed' if campaign.status == CampaignStatus.COMPLETED else 'sent',
             'message': f'Campaign "{campaign.title}" dispatched immediately via AWS SES to {eligible_contacts_count} contacts.'
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='schedule')
+    def schedule_campaign(self, request, pk=None):
+        campaign = self.get_object()
+        scheduled_at = request.data.get('scheduled_at')
+
+        if not scheduled_at:
+            return Response({'error': 'scheduled_at datetime is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not campaign.subject or not campaign.sender_email:
+            return Response({'error': 'Subject and sender email are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not campaign.compiled_html:
+            return Response({'error': 'Campaign email content (HTML) is empty.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        target_lists = campaign.target_lists.all()
+        if not target_lists.exists():
+            return Response({'error': 'No audience contact list is assigned. Please select at least one contact list.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        suppressed_emails = set(SuppressionList.objects.values_list('email', flat=True))
+        eligible_contacts_count = (
+            ListContact.objects
+            .filter(list__in=target_lists, contact__status=ContactStatus.ACTIVE)
+            .exclude(contact__email__in=suppressed_emails)
+            .values('contact_id')
+            .distinct()
+            .count()
+        )
+
+        from django.utils.dateparse import parse_datetime
+        parsed_dt = parse_datetime(scheduled_at)
+        if not parsed_dt:
+            return Response({'error': 'Invalid datetime format. Expected ISO-8601 string.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        campaign.scheduled_at = parsed_dt
+        campaign.status = CampaignStatus.SCHEDULED
+        campaign.total_recipients = eligible_contacts_count
+        campaign.save(update_fields=['scheduled_at', 'status', 'total_recipients'])
+
+        return Response({
+            'status': 'SCHEDULED',
+            'scheduled_at': campaign.scheduled_at.isoformat(),
+            'total_recipients': eligible_contacts_count,
+            'message': f'Campaign "{campaign.title}" successfully scheduled for {campaign.scheduled_at.isoformat()} ({eligible_contacts_count} recipients).'
         }, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['get'], url_path='stats')

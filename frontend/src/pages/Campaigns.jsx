@@ -36,7 +36,9 @@ export default function Campaigns({ onCreateCampaign, onEditCampaign, setActiveP
           openRate: sent > 0 ? Number(((c.open_count / sent) * 100).toFixed(1)) : 0,
           clickRate: sent > 0 ? Number(((c.click_count / sent) * 100).toFixed(1)) : 0,
           bounceRate: sent > 0 ? Number(((c.bounce_count / sent) * 100).toFixed(2)) : 0,
-          sentAt: c.started_at ? new Date(c.started_at).toLocaleString() : c.sentAt || null,
+          sentAt: c.status === 'SCHEDULED' && c.scheduled_at
+            ? `Scheduled: ${new Date(c.scheduled_at).toLocaleString()}`
+            : (c.started_at ? new Date(c.started_at).toLocaleString() : c.sentAt || null),
           isAB: c.campaign_type === 'AB_TEST' || c.isAB || false,
           // Pass through raw counts for Analytics page
           open_count: c.open_count,
@@ -115,13 +117,20 @@ export default function Campaigns({ onCreateCampaign, onEditCampaign, setActiveP
     }
   };
 
-  const handleEdit = (campaign, e) => {
+  const handleEdit = async (campaign, e) => {
     if (e) e.stopPropagation();
     setOpenMenu(null);
-    if (onEditCampaign) {
-      onEditCampaign(campaign);
-    } else {
-      onCreateCampaign();
+    try {
+      // Fetch full campaign details from backend so target_lists, email content, etc. are populated
+      const full = await api.campaigns.get(campaign.id).catch(() => null);
+      const campaignToEdit = full || campaign;
+      if (onEditCampaign) {
+        onEditCampaign(campaignToEdit);
+      } else {
+        onCreateCampaign();
+      }
+    } catch {
+      if (onEditCampaign) onEditCampaign(campaign);
     }
   };
 

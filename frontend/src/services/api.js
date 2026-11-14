@@ -65,6 +65,12 @@ export const api = {
     async send(id) {
       return await request(`/campaigns/${id}/send/`, { method: 'POST' });
     },
+    async schedule(id, scheduledAt) {
+      return await request(`/campaigns/${id}/schedule/`, {
+        method: 'POST',
+        body: JSON.stringify({ scheduled_at: scheduledAt }),
+      });
+    },
     async testSend(id, testEmail) {
       return await request(`/campaigns/${id}/test-send/`, {
         method: 'POST',

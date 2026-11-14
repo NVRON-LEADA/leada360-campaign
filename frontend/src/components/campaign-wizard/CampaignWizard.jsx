@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, ChevronRight, ChevronLeft, Check, Send, AlertCircle, CheckCircle, Monitor, Smartphone, Palette, Eye } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Check, Send, AlertCircle, CheckCircle, Monitor, Smartphone, Palette, Eye, Calendar, Clock } from 'lucide-react';
 import { templates, generateEmailHtml } from '../../mockData/templates';
 import { api } from '../../services/api';
 
@@ -611,13 +611,27 @@ function Step4({ data, setData }) {
   );
 }
 
-function Step5({ data, onClose, setActivePage }) {
+function Step5({ data, onClose, setActivePage, initialCampaign = null }) {
   const [submitting, setSubmitting] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState(() => {
+    // Default to tomorrow at 10:00 AM in local time format for datetime-local input
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(10, 0, 0, 0);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  });
 
   const handleSendNow = async () => {
+    if (!data.selectedLists || data.selectedLists.length === 0) {
+      alert('Cannot send campaign: Please go back to Step 2 (Audience) and select at least one contact list.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const created = await api.campaigns.create({
+      const payload = {
         title: data.name || 'Untitled Campaign',
         subject: data.subject || 'Special Update',
         preheader: data.preheader || '',
@@ -625,11 +639,19 @@ function Step5({ data, onClose, setActivePage }) {
         sender_email: data.senderEmail || 'info@nvron.in',
         target_lists: data.selectedLists || [],
         compiled_html: data.emailBody || '<h1>Hello {{first_name}}</h1><p>Thank you for subscribing!</p>',
-      });
+      };
 
-      if (created?.id) {
-        await api.campaigns.send(created.id);
-        alert(`Campaign "${created.title}" dispatched via AWS SES successfully!`);
+      let campaignId = initialCampaign?.id;
+      if (campaignId) {
+        await api.campaigns.update(campaignId, payload);
+      } else {
+        const created = await api.campaigns.create(payload);
+        campaignId = created?.id;
+      }
+
+      if (campaignId) {
+        await api.campaigns.send(campaignId);
+        alert(`Campaign "${data.name || 'Untitled'}" dispatched via AWS SES successfully!`);
       }
       onClose();
       setActivePage('campaigns');
@@ -637,6 +659,61 @@ function Step5({ data, onClose, setActivePage }) {
       alert(`Dispatch error: ${err.message}`);
       onClose();
       setActivePage('campaigns');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleScheduleConfirm = async () => {
+    if (!data.selectedLists || data.selectedLists.length === 0) {
+      alert('Cannot schedule campaign: Please go back to Step 2 (Audience) and select at least one contact list.');
+      return;
+    }
+    if (!scheduleDate) {
+      alert('Please select a valid date and time.');
+      return;
+    }
+    const chosenTime = new Date(scheduleDate);
+    if (isNaN(chosenTime.getTime())) {
+      alert('Invalid date format.');
+      return;
+    }
+    if (chosenTime <= new Date()) {
+      alert('Please choose a future date and time for scheduling.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const payload = {
+        title: data.name || 'Untitled Campaign',
+        subject: data.subject || 'Special Update',
+        preheader: data.preheader || '',
+        sender_name: data.senderName || 'NVRON Life Science',
+        sender_email: data.senderEmail || 'info@nvron.in',
+        target_lists: data.selectedLists || [],
+        compiled_html: data.emailBody || '<h1>Hello {{first_name}}</h1><p>Thank you for subscribing!</p>',
+        scheduled_at: chosenTime.toISOString(),
+      };
+
+      let campaignId = initialCampaign?.id;
+      if (campaignId) {
+        await api.campaigns.update(campaignId, payload);
+      } else {
+        const created = await api.campaigns.create(payload);
+        campaignId = created?.id;
+      }
+
+      if (campaignId) {
+        // 2. Mark it scheduled via schedule endpoint
+        await api.campaigns.schedule(campaignId, chosenTime.toISOString());
+        alert(`Campaign "${data.name || 'Untitled'}" has been successfully scheduled for ${chosenTime.toLocaleString()}!`);
+      }
+      setShowScheduleModal(false);
+      onClose();
+      setActivePage('campaigns');
+    } catch (err) {
+      alert(`Scheduling error: ${err.message}`);
     } finally {
       setSubmitting(false);
     }
@@ -687,17 +764,94 @@ function Step5({ data, onClose, setActivePage }) {
           >
             <Send size={14} className={submitting ? 'animate-spin' : ''} /> {submitting ? 'Dispatching...' : 'Send Now'}
           </button>
-          <button className="flex items-center justify-center gap-2 py-3 border-2 border-blue-600 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-50 transition-colors">
-            📅 Schedule for Later
+          <button 
+            onClick={() => setShowScheduleModal(true)}
+            disabled={submitting}
+            className="flex items-center justify-center gap-2 py-3 border-2 border-blue-600 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-50 transition-colors disabled:opacity-50"
+          >
+            <Calendar size={14} /> Schedule for Later
           </button>
         </div>
       </div>
+
+      {/* Schedule for Later Modal */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-5 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b pb-2">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                <Calendar size={16} className="text-blue-600" /> Schedule Campaign
+              </div>
+              <button 
+                onClick={() => setShowScheduleModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-xs"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <p className="text-xs text-gray-600">
+              Select the exact date and time when this campaign should automatically trigger and send to the selected audience.
+            </p>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Dispatch Date & Time
+              </label>
+              <div className="relative">
+                <input 
+                  type="datetime-local" 
+                  value={scheduleDate}
+                  min={new Date().toISOString().slice(0, 16)}
+                  onChange={(e) => setScheduleDate(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                />
+              </div>
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mt-2">
+                <Clock size={12} className="text-gray-400" />
+                <span>Timezone: Local System Time ({Intl.DateTimeFormat().resolvedOptions().timeZone})</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t">
+              <button
+                type="button"
+                onClick={() => setShowScheduleModal(false)}
+                disabled={submitting}
+                className="px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleScheduleConfirm}
+                disabled={submitting}
+                className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {submitting ? 'Scheduling...' : 'Confirm Schedule'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function CampaignWizard({ onClose, setActivePage, initialCampaign = null, initialTemplate = null }) {
   const defaultTpl = initialTemplate || templates[0];
+
+  // Resolve target list IDs from initialCampaign (handles array of UUIDs or array of list objects)
+  const resolveTargetLists = (campaign) => {
+    if (!campaign) return [];
+    if (Array.isArray(campaign.target_lists) && campaign.target_lists.length > 0) {
+      return campaign.target_lists.map(item => (typeof item === 'object' && item !== null ? item.id : item));
+    }
+    if (Array.isArray(campaign.target_list_details) && campaign.target_list_details.length > 0) {
+      return campaign.target_list_details.map(item => item.id);
+    }
+    return [];
+  };
 
   const [step, setStep] = useState(initialTemplate ? 3 : 0); // If launched from template, go straight to builder/details
   const [data, setData] = useState(() => {
@@ -708,7 +862,7 @@ export default function CampaignWizard({ onClose, setActivePage, initialCampaign
       preheader: initialCampaign?.preheader || '',
       senderName: initialCampaign?.senderName || 'NVRON Life Science',
       senderEmail: initialCampaign?.sender || initialCampaign?.sender_email || 'info@nvron.in',
-      selectedLists: initialCampaign?.target_lists || [],
+      selectedLists: resolveTargetLists(initialCampaign),
       template: defaultTpl.id,
       selectedTemplateObj: defaultTpl,
       headerBg: defaultTpl.theme?.headerBg || '#1e3a8a',
@@ -733,7 +887,7 @@ export default function CampaignWizard({ onClose, setActivePage, initialCampaign
     <Step2 data={data} setData={setData} />,
     <Step3 data={data} setData={setData} />,
     <Step4 data={data} setData={setData} />,
-    <Step5 data={data} onClose={onClose} setActivePage={setActivePage} />,
+    <Step5 data={data} onClose={onClose} setActivePage={setActivePage} initialCampaign={initialCampaign} />,
   ];
 
   return (

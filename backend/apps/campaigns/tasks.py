@@ -234,3 +234,23 @@ def _run_dispatch_chunk(campaign_id, contact_ids):
 
     logger.info(f"[DISPATCH DONE] Campaign '{campaign.title}': {successful_sends}/{contacts.count()} sent in this chunk.")
 
+
+@shared_task
+def check_and_dispatch_scheduled_campaigns():
+    """
+    Periodic task:
+    Finds all campaigns with status='SCHEDULED' and scheduled_at <= now,
+    and triggers prepare_campaign_chunks for them.
+    """
+    now = timezone.now()
+    due_campaigns = Campaign.objects.filter(
+        status=CampaignStatus.SCHEDULED,
+        scheduled_at__lte=now
+    )
+    dispatched_count = 0
+    for campaign in due_campaigns:
+        logger.info(f"[SCHEDULED DISPATCH] Triggering due campaign {campaign.id} ('{campaign.title}')")
+        prepare_campaign_chunks(str(campaign.id))
+        dispatched_count += 1
+    return f"Dispatched {dispatched_count} scheduled campaigns"
+
