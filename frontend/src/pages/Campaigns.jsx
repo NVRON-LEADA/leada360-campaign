@@ -288,13 +288,13 @@ export default function Campaigns({ onCreateCampaign, onEditCampaign, setActiveP
                     <td className="px-3 py-2.5 text-xs text-gray-500">{c.sentAt || '—'}</td>
                     <td className="px-3 py-2.5 relative">
                       <div className="flex items-center gap-1">
-                        {c.status.toLowerCase() === 'draft' && (
+                        {c.status.toLowerCase() !== 'sent' && (
                           <button
                             onClick={(e) => handleLaunchCampaign(c, e)}
                             className="px-2 py-0.5 text-[10px] font-medium bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1"
-                            title="Launch now"
+                            title={c.status.toLowerCase() === 'processing' ? "Resume/Send remaining" : "Launch now"}
                           >
-                            <Send size={10} /> Send
+                            <Send size={10} /> {c.status.toLowerCase() === 'processing' ? 'Resume' : 'Send'}
                           </button>
                         )}
                         <button onClick={e => { e.stopPropagation(); setOpenMenu(openMenu === c.id ? null : c.id); }}
