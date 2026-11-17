@@ -119,9 +119,9 @@ export default function Contacts() {
     setLoading(true);
     try {
       const [cData, lData, sData] = await Promise.all([
-        api.contacts.list({ page_size: 500 }),
-        api.lists.list({ page_size: 200 }),
-        api.suppression.list({ page_size: 500 }),
+        api.contacts.list({ page_size: 50000 }),
+        api.lists.list({ page_size: 1000 }),
+        api.suppression.list({ page_size: 50000 }),
       ]);
 
       const rawContacts = Array.isArray(cData) ? cData : (cData?.results || []);

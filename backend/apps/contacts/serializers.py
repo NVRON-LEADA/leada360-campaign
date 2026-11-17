@@ -32,8 +32,9 @@ class ContactSerializer(serializers.ModelSerializer):
         }
 
     def get_list_name(self, obj):
-        first_membership = obj.list_memberships.select_related('list').first()
-        return first_membership.list.name if first_membership else 'General'
+        # Use prefetch cache directly to prevent N+1 DB hit
+        memberships = obj.list_memberships.all()
+        return memberships[0].list.name if memberships else 'General'
 
     def create(self, validated_data):
         list_id = validated_data.pop('list_id', None)
