@@ -138,6 +138,29 @@ export const api = {
     },
   },
 
+  // Templates
+  templates: {
+    async list(params = {}) {
+      const query = new URLSearchParams(params).toString();
+      return await request(`/campaigns/templates/${query ? `?${query}` : ''}`);
+    },
+    async create(data) {
+      return await request('/campaigns/templates/', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    async update(id, data) {
+      return await request(`/campaigns/templates/${id}/`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+    async delete(id) {
+      return await request(`/campaigns/templates/${id}/`, { method: 'DELETE' });
+    },
+  },
+
   // Telemetry Events & Live Notifications
   telemetry: {
     async recentEvents(limit = 20) {

@@ -94,3 +94,35 @@ class CampaignDispatch(models.Model):
     def __str__(self):
         return f"Campaign {self.campaign_id} -> {self.contact.email} ({self.status})"
 
+
+class EmailTemplate(models.Model):
+    """
+    Persistent customizable email templates.
+    Supports title, category, description, theme palette, and default layout sections.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255, help_text="Template title")
+    category = models.CharField(max_length=100, default='Custom', db_index=True)
+    thumbnail = models.CharField(max_length=50, default='📧', help_text="Emoji or icon indicator")
+    description = models.TextField(blank=True, default='')
+    preview_color = models.CharField(max_length=50, default='#1e3a8a')
+    
+    # Theme configuration (headerBg, buttonBg, footerBg, etc.)
+    theme = models.JSONField(default=dict, blank=True)
+    
+    # Default structured content (headingText, subheadingText, paragraphs, ctaButton, footerLinks, etc.)
+    default_content = models.JSONField(default=dict, blank=True)
+    
+    # System default vs user custom created
+    is_system = models.BooleanField(default=False)
+    
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'campaign_email_templates'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.name} ({self.category})"
+

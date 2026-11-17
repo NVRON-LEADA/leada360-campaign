@@ -119,9 +119,9 @@ export default function Contacts() {
     setLoading(true);
     try {
       const [cData, lData, sData] = await Promise.all([
-        api.contacts.list({ page_size: 10000 }),
-        api.lists.list({ page_size: 1000 }),
-        api.suppression.list({ page_size: 10000 }),
+        api.contacts.list({ page_size: 500 }),
+        api.lists.list({ page_size: 200 }),
+        api.suppression.list({ page_size: 500 }),
       ]);
 
       const rawContacts = Array.isArray(cData) ? cData : (cData?.results || []);
@@ -410,35 +410,58 @@ export default function Contacts() {
               </tr>
             </thead>
             <tbody>
-              {paginatedSubscribers.map(c => (
-                <tr key={c.id} className="border-b border-gray-50 hover:bg-blue-50/30">
-                  <td className="px-4 py-2.5"><input type="checkbox" className="w-3 h-3" /></td>
-                  <td className="px-3 py-2.5">
-                    <div className="text-xs font-medium text-blue-600">{c.email}</div>
-                  </td>
-                  <td className="px-3 py-2.5 text-xs text-gray-700">{c.firstName} {c.lastName}</td>
-                  <td className="px-3 py-2.5 text-xs text-gray-600">{c.company}</td>
-                  <td className="px-3 py-2.5"><StatusBadge status={c.status} /></td>
-                  <td className="px-3 py-2.5 text-xs text-gray-600">
-                    <span className="bg-gray-100 px-2 py-0.5 rounded text-[11px] text-gray-700 font-medium">{c.list}</span>
-                  </td>
-                  <td className="px-3 py-2.5 text-xs text-gray-500">{c.source}</td>
-                  <td className="px-3 py-2.5 text-xs text-gray-400">{c.createdAt}</td>
-                  <td className="px-3 py-2.5">
-                    <button 
-                      onClick={(e) => handleDeleteContact(c.id, e)}
-                      title="Delete contact"
-                      className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
+              {loading ? (
+                // Zoho-standard elegant skeleton pulse loader
+                Array.from({ length: 7 }).map((_, idx) => (
+                  <tr key={`skeleton-${idx}`} className="border-b border-gray-100 animate-pulse">
+                    <td className="px-4 py-3"><div className="w-3.5 h-3.5 bg-gray-200 rounded"></div></td>
+                    <td className="px-3 py-3"><div className="h-3.5 bg-blue-100 rounded w-44"></div></td>
+                    <td className="px-3 py-3"><div className="h-3 bg-gray-200 rounded w-28"></div></td>
+                    <td className="px-3 py-3"><div className="h-3 bg-gray-200 rounded w-24"></div></td>
+                    <td className="px-3 py-3"><div className="h-4 bg-emerald-100 rounded-full w-14"></div></td>
+                    <td className="px-3 py-3"><div className="h-3.5 bg-gray-100 rounded w-20"></div></td>
+                    <td className="px-3 py-3"><div className="h-3 bg-gray-200 rounded w-16"></div></td>
+                    <td className="px-3 py-3"><div className="h-3 bg-gray-200 rounded w-20"></div></td>
+                    <td className="px-3 py-3"><div className="w-4 h-4 bg-gray-200 rounded"></div></td>
+                  </tr>
+                ))
+              ) : (
+                paginatedSubscribers.map(c => (
+                  <tr key={c.id} className="border-b border-gray-50 hover:bg-blue-50/30">
+                    <td className="px-4 py-2.5"><input type="checkbox" className="w-3 h-3" /></td>
+                    <td className="px-3 py-2.5">
+                      <div className="text-xs font-medium text-blue-600">{c.email}</div>
+                    </td>
+                    <td className="px-3 py-2.5 text-xs text-gray-700">{c.firstName} {c.lastName}</td>
+                    <td className="px-3 py-2.5 text-xs text-gray-600">{c.company}</td>
+                    <td className="px-3 py-2.5"><StatusBadge status={c.status} /></td>
+                    <td className="px-3 py-2.5 text-xs text-gray-600">
+                      <span className="bg-gray-100 px-2 py-0.5 rounded text-[11px] text-gray-700 font-medium">{c.list}</span>
+                    </td>
+                    <td className="px-3 py-2.5 text-xs text-gray-500">{c.source}</td>
+                    <td className="px-3 py-2.5 text-xs text-gray-400">{c.createdAt}</td>
+                    <td className="px-3 py-2.5">
+                      <button 
+                        onClick={(e) => handleDeleteContact(c.id, e)}
+                        title="Delete contact"
+                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+              {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-xs text-gray-400">
-                    {loading ? 'Connecting to backend API...' : 'No contacts found.'}
+                  <td colSpan={9} className="py-12 text-center">
+                    <div className="flex flex-col items-center justify-center text-gray-400">
+                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-2">
+                        <Users size={18} className="text-gray-400" />
+                      </div>
+                      <p className="text-xs font-medium text-gray-600">No contacts found</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">Add contacts or import from CSV to begin.</p>
+                    </div>
                   </td>
                 </tr>
               )}

@@ -10,12 +10,10 @@ class ContactListSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
     def get_subscriber_count(self, obj):
-        count = obj.memberships.count()
-        # Keep total_subscribers synchronized if out of sync
-        if obj.total_subscribers != count:
-            obj.total_subscribers = count
-            obj.save(update_fields=['total_subscribers'])
-        return count
+        # Prefer direct total_subscribers if populated to avoid N+1 queries during large list serialization
+        if hasattr(obj, 'annotated_subscribers'):
+            return obj.annotated_subscribers
+        return obj.total_subscribers or obj.memberships.count()
 
 class ContactSerializer(serializers.ModelSerializer):
     email = serializers.EmailField()

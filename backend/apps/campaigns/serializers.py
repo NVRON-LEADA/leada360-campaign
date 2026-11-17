@@ -38,3 +38,14 @@ class CampaignDispatchSerializer(serializers.ModelSerializer):
         fields = ['id', 'campaign', 'contact', 'contact_email', 'ses_message_id', 'status', 'error_message', 'sent_at', 'delivered_at']
         read_only_fields = ['id', 'ses_message_id', 'sent_at', 'delivered_at']
 
+
+class EmailTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        from .models import EmailTemplate
+        model = EmailTemplate
+        fields = [
+            'id', 'name', 'category', 'thumbnail', 'description', 'preview_color',
+            'theme', 'default_content', 'is_system', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+

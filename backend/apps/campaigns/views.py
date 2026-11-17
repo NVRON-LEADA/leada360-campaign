@@ -2,8 +2,8 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Sum
-from .models import Campaign, CampaignStatus, CampaignDispatch
-from .serializers import CampaignSerializer, CampaignDispatchSerializer
+from .models import Campaign, CampaignStatus, CampaignDispatch, EmailTemplate
+from .serializers import CampaignSerializer, CampaignDispatchSerializer, EmailTemplateSerializer
 from .tasks import prepare_campaign_chunks
 from apps.telemetry.models import EmailEvent, EventType
 from apps.contacts.models import Contact, ContactList, ListContact, SuppressionList, ContactStatus
@@ -314,3 +314,20 @@ class CampaignDispatchViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = CampaignDispatch.objects.all().select_related('contact', 'campaign')
     serializer_class = CampaignDispatchSerializer
     filterset_fields = ['campaign', 'status']
+
+
+class EmailTemplateViewSet(viewsets.ModelViewSet):
+    """
+    CRUD API for Email Templates.
+    Allows user to create, update (title, descriptions, colors, content), and delete templates.
+    """
+    queryset = EmailTemplate.objects.all()
+    serializer_class = EmailTemplateSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        category = self.request.query_params.get('category')
+        if category and category != 'All':
+            qs = qs.filter(category__iexact=category)
+        return qs
+

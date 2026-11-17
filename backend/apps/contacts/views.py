@@ -86,7 +86,8 @@ class ContactViewSet(viewsets.ModelViewSet):
 
 
 class ContactListViewSet(viewsets.ModelViewSet):
-    queryset = ContactList.objects.all()
+    from django.db.models import Count
+    queryset = ContactList.objects.annotate(annotated_subscribers=Count('memberships')).order_by('-created_at')
     serializer_class = ContactListSerializer
 
 
