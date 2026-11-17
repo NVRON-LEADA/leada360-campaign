@@ -353,6 +353,15 @@ function Step4({ data, setData }) {
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Check file size (Allow up to 10 MB)
+    const MAX_SIZE_MB = 10;
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      alert(`The selected file is ${(file.size / (1024 * 1024)).toFixed(1)} MB. Please choose a file under 10 MB.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
     setUploadingAttachment(true);
     try {
       const res = await api.campaigns.uploadAttachment(file);

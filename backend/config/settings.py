@@ -145,4 +145,8 @@ TRACKING_BASE_URL = env('TRACKING_BASE_URL', default='http://localhost:8000')
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# File & Request upload sizes (Allows up to 25MB files for brochures/PDFs)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024  # 25 MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024  # 25 MB
+
 
