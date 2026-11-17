@@ -5,6 +5,7 @@ from apps.contacts.serializers import ContactListSerializer
 class CampaignSerializer(serializers.ModelSerializer):
     target_list_details = ContactListSerializer(source='target_lists', many=True, read_only=True)
     attachment_url = serializers.SerializerMethodField(read_only=True)
+    attachment = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     class Meta:
         model = Campaign

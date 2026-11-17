@@ -79,7 +79,18 @@ class ClickTrackingView(View):
     Logs CLICK event and redirects user to intended target.
     """
     def get(self, request, token):
-        target_url = request.GET.get('target', 'https://leada.in')
+        # Support both ?d=<base64> (standard encoder) and ?target=<url>
+        target_url = request.GET.get('target')
+        d_param = request.GET.get('d')
+        if not target_url and d_param:
+            try:
+                import base64
+                target_url = base64.urlsafe_b64decode(d_param.encode()).decode()
+            except Exception:
+                target_url = None
+
+        if not target_url:
+            target_url = 'https://nvron.in'
         campaign_id, contact_id = decode_token(token)
 
         if campaign_id and contact_id:
