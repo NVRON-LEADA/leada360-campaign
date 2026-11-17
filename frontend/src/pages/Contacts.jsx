@@ -79,6 +79,8 @@ export default function Contacts() {
   const [viewingList, setViewingList] = useState(null);
   const [listContactsLoading, setListContactsLoading] = useState(false);
   const [listContactsData, setListContactsData] = useState([]);
+  const [listModalPage, setListModalPage] = useState(1);
+  const [listModalPageSize, setListModalPageSize] = useState(25);
 
   // Form states for adding contact
   const [newEmail, setNewEmail] = useState('');
@@ -117,12 +119,16 @@ export default function Contacts() {
     setLoading(true);
     try {
       const [cData, lData, sData] = await Promise.all([
-        api.contacts.list(),
-        api.lists.list(),
-        api.suppression.list(),
+        api.contacts.list({ page_size: 10000 }),
+        api.lists.list({ page_size: 1000 }),
+        api.suppression.list({ page_size: 10000 }),
       ]);
 
-      setSubscribers((cData || []).map(c => ({
+      const rawContacts = Array.isArray(cData) ? cData : (cData?.results || []);
+      const rawLists = Array.isArray(lData) ? lData : (lData?.results || []);
+      const rawSuppressed = Array.isArray(sData) ? sData : (sData?.results || []);
+
+      setSubscribers(rawContacts.map(c => ({
         id: c.id,
         email: c.email,
         firstName: c.first_name || c.firstName || '',
@@ -134,7 +140,7 @@ export default function Contacts() {
         createdAt: c.created_at ? new Date(c.created_at).toLocaleDateString() : c.createdAt || 'Today',
       })));
 
-      setContactLists((lData || []).map(l => ({
+      setContactLists(rawLists.map(l => ({
         id: l.id,
         name: l.name,
         count: typeof l.subscriber_count === 'number' ? l.subscriber_count : (l.total_subscribers ?? 0),
@@ -142,7 +148,7 @@ export default function Contacts() {
         created: l.created_at ? new Date(l.created_at).toLocaleDateString() : l.created || 'Recent',
       })));
 
-      setSuppressed((sData || []).map(s => ({
+      setSuppressed(rawSuppressed.map(s => ({
         email: s.email,
         reason: s.reason,
         type: s.reason?.includes('BOUNCE') ? 'Bounce' : s.reason?.includes('COMPLAINT') ? 'Complaint' : 'Unsubscribe',
@@ -162,9 +168,11 @@ export default function Contacts() {
   const handleOpenListContacts = async (list) => {
     setViewingList(list);
     setListContactsLoading(true);
+    setListModalPage(1);
     try {
-      const data = await api.contacts.list({ list_id: list.id });
-      setListContactsData(data || []);
+      const data = await api.contacts.list({ list_id: list.id, page_size: 10000 });
+      const contactsList = Array.isArray(data) ? data : (data?.results || []);
+      setListContactsData(contactsList);
     } catch (err) {
       console.error('Failed to load list contacts:', err);
       // Fallback to local filter if query param fails
@@ -588,7 +596,7 @@ export default function Contacts() {
               </div>
               <div className="text-right">
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
-                  {listContactsData.length} Contact{listContactsData.length === 1 ? '' : 's'}
+                  {listContactsData.length.toLocaleString()} Contact{listContactsData.length === 1 ? '' : 's'}
                 </span>
               </div>
             </div>
@@ -621,28 +629,46 @@ export default function Contacts() {
                       </td>
                     </tr>
                   ) : (
-                    listContactsData.map(c => {
-                      const name = [c.first_name || c.firstName, c.last_name || c.lastName].filter(Boolean).join(' ') || '-';
-                      const created = c.created_at ? new Date(c.created_at).toLocaleDateString() : c.createdAt || '-';
-                      const statusVal = c.status || 'Active';
-                      const formattedStatus = statusVal.charAt(0).toUpperCase() + statusVal.slice(1).toLowerCase();
+                    listContactsData
+                      .slice((listModalPage - 1) * listModalPageSize, listModalPage * listModalPageSize)
+                      .map(c => {
+                        const name = [c.first_name || c.firstName, c.last_name || c.lastName].filter(Boolean).join(' ') || '-';
+                        const created = c.created_at ? new Date(c.created_at).toLocaleDateString() : c.createdAt || '-';
+                        const statusVal = c.status || 'Active';
+                        const formattedStatus = statusVal.charAt(0).toUpperCase() + statusVal.slice(1).toLowerCase();
 
-                      return (
-                        <tr key={c.id} className="hover:bg-gray-50/70 text-xs">
-                          <td className="px-3 py-2 font-medium text-blue-600">{c.email}</td>
-                          <td className="px-3 py-2 text-gray-700">{name}</td>
-                          <td className="px-3 py-2 text-gray-600">{c.company || '-'}</td>
-                          <td className="px-3 py-2">
-                            <StatusBadge status={formattedStatus} />
-                          </td>
-                          <td className="px-3 py-2 text-gray-400 text-[11px]">{created}</td>
-                        </tr>
-                      );
-                    })
+                        return (
+                          <tr key={c.id} className="hover:bg-gray-50/70 text-xs">
+                            <td className="px-3 py-2 font-medium text-blue-600">{c.email}</td>
+                            <td className="px-3 py-2 text-gray-700">{name}</td>
+                            <td className="px-3 py-2 text-gray-600">{c.company || '-'}</td>
+                            <td className="px-3 py-2">
+                              <StatusBadge status={formattedStatus} />
+                            </td>
+                            <td className="px-3 py-2 text-gray-400 text-[11px]">{created}</td>
+                          </tr>
+                        );
+                      })
                   )}
                 </tbody>
               </table>
             </div>
+
+            {listContactsData.length > 0 && (
+              <Pagination
+                currentPage={listModalPage}
+                totalPages={Math.ceil(listContactsData.length / listModalPageSize) || 1}
+                totalItems={listContactsData.length}
+                pageSize={listModalPageSize}
+                onPageChange={setListModalPage}
+                onPageSizeChange={size => {
+                  setListModalPageSize(size);
+                  setListModalPage(1);
+                }}
+                pageSizeOptions={[25, 50, 100, 250]}
+                itemName="contacts"
+              />
+            )}
 
             <div className="flex justify-between items-center pt-2">
               <button

@@ -179,6 +179,10 @@ def _run_dispatch_chunk(campaign_id, contact_ids):
         # Build From: address - SES requires verified identity
         from_addr = f"{campaign.sender_name} <{campaign.sender_email}>" if campaign.sender_name else campaign.sender_email
 
+        # Check for campaign attachment
+        att_path = campaign.attachment.path if campaign.attachment and hasattr(campaign.attachment, 'path') else None
+        att_name = campaign.attachment_name or None
+
         # SES API Call
         res = ses_service.send_single_email(
             source_email=from_addr,
@@ -186,7 +190,9 @@ def _run_dispatch_chunk(campaign_id, contact_ids):
             subject=campaign.subject,
             html_body=personalized_body,
             reply_to=campaign.reply_to or campaign.sender_email,
-            headers=headers
+            headers=headers,
+            attachment_path=att_path,
+            attachment_name=att_name
         )
 
         dispatch = CampaignDispatch.objects.filter(campaign=campaign, contact=contact).first()

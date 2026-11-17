@@ -27,6 +27,32 @@ class CampaignViewSet(viewsets.ModelViewSet):
             qs = qs.filter(status=status_param)
         return qs
 
+    @action(detail=False, methods=['post'], url_path='upload-attachment')
+    def upload_attachment(self, request):
+        """
+        Uploads an attachment (e.g. PDF brochure, clinical study, document)
+        and returns its relative path, filename, and full URL.
+        """
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({'error': 'No file uploaded'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from django.core.files.storage import default_storage
+        import os
+
+        # Save file to media/attachments/
+        save_path = os.path.join('attachments', file_obj.name)
+        saved_name = default_storage.save(save_path, file_obj)
+        file_url = default_storage.url(saved_name)
+        full_url = request.build_absolute_uri(file_url)
+
+        return Response({
+            'attachment': saved_name,
+            'attachment_name': file_obj.name,
+            'attachment_url': full_url,
+            'file_size': file_obj.size,
+        }, status=status.HTTP_201_CREATED)
+
     @action(detail=False, methods=['get'], url_path='dashboard-overview')
     def dashboard_overview(self, request):
         """

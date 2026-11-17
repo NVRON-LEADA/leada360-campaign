@@ -30,6 +30,8 @@ class Campaign(models.Model):
     # Content templates
     mjml_content = models.TextField(blank=True, default='', help_text="Raw MJML markup from drag-and-drop builder")
     compiled_html = models.TextField(blank=True, default='', help_text="Compiled responsive HTML ready for dispatch")
+    attachment = models.FileField(upload_to='attachments/', null=True, blank=True, help_text="PDF or document attachment")
+    attachment_name = models.CharField(max_length=255, blank=True, default='', help_text="Original uploaded attachment filename")
 
     # Target Audience
     target_lists = models.ManyToManyField(ContactList, related_name='campaigns', blank=True)

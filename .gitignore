@@ -20,6 +20,9 @@ dist/
 frontend/dist/
 .npm/
 
+# Keys
+*.pem
+
 # IDE & OS
 .vscode/
 .idea/

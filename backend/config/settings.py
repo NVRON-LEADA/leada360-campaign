@@ -107,7 +107,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Django REST Framework Settings
 REST_FRAMEWORK = {
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'DEFAULT_PAGINATION_CLASS': 'config.pagination.StandardResultsSetPagination',
     'PAGE_SIZE': 50,
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',  # Adjust to IsAuthenticated for multi-tenant prod
@@ -140,4 +140,9 @@ AWS_DEFAULT_REGION = env('AWS_DEFAULT_REGION', default='us-east-1')
 AWS_SES_SOURCE_EMAIL = env('AWS_SES_SOURCE_EMAIL', default='notifications@yourdomain.com')
 AWS_SES_CONFIGURATION_SET = env('AWS_SES_CONFIGURATION_SET', default='')
 TRACKING_BASE_URL = env('TRACKING_BASE_URL', default='http://localhost:8000')
+
+# Media files (Uploaded campaign attachments, PDFs, etc.)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 

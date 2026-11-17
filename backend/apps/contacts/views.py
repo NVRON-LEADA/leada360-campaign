@@ -20,7 +20,7 @@ class ContactViewSet(viewsets.ModelViewSet):
                 l.save(update_fields=['total_subscribers'])
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().prefetch_related('list_memberships__list')
         status_param = self.request.query_params.get('status')
         if status_param:
             qs = qs.filter(status=status_param)

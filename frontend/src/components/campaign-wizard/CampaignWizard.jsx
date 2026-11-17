@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { X, ChevronRight, ChevronLeft, Check, Send, AlertCircle, CheckCircle, Monitor, Smartphone, Palette, Eye, Calendar, Clock } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, ChevronRight, ChevronLeft, Check, Send, AlertCircle, CheckCircle, Monitor, Smartphone, Palette, Eye, Calendar, Clock, Paperclip, FileText, Upload, Trash2 } from 'lucide-react';
 import { templates, generateEmailHtml } from '../../mockData/templates';
 import { api } from '../../services/api';
 
@@ -82,7 +82,8 @@ function Step2({ data, setData }) {
     async function loadLists() {
       try {
         const res = await api.lists.list();
-        setAvailableLists(res || []);
+        const listsArray = Array.isArray(res) ? res : (res?.results || []);
+        setAvailableLists(listsArray);
       } catch (err) {
         console.error('Failed to load lists:', err);
       } finally {
@@ -298,6 +299,8 @@ function Step3({ data, setData }) {
 function Step4({ data, setData }) {
   const [view, setView] = useState('desktop');
   const [editorMode, setEditorMode] = useState('rich'); // 'rich' or 'html'
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const fileInputRef = useRef(null);
 
   const currentTemplate = data.selectedTemplateObj || templates.find(t => t.id === data.template) || templates[0];
 
@@ -309,6 +312,11 @@ function Step4({ data, setData }) {
   const [messageParagraph2, setMessageParagraph2] = useState(data.messageParagraph2 || currentTemplate.defaultContent.messageParagraph2);
   const [ctaButtonText, setCtaButtonText] = useState(data.ctaButtonText || currentTemplate.defaultContent.ctaButtonText);
   const [ctaButtonUrl, setCtaButtonUrl] = useState(data.ctaButtonUrl || currentTemplate.defaultContent.ctaButtonUrl);
+
+  // Attachment states
+  const [attachment, setAttachment] = useState(data.attachment || '');
+  const [attachmentName, setAttachmentName] = useState(data.attachmentName || '');
+  const [attachmentUrl, setAttachmentUrl] = useState(data.attachmentUrl || '');
 
   // Editable Color Theme
   const [headerBg, setHeaderBg] = useState(data.headerBg || currentTemplate.theme.headerBg);
@@ -328,6 +336,29 @@ function Step4({ data, setData }) {
     ]
   );
 
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAttachment(true);
+    try {
+      const res = await api.campaigns.uploadAttachment(file);
+      setAttachment(res.attachment);
+      setAttachmentName(res.attachment_name);
+      setAttachmentUrl(res.attachment_url);
+    } catch (err) {
+      alert(`Error uploading document: ${err.message}`);
+    } finally {
+      setUploadingAttachment(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveAttachment = () => {
+    setAttachment('');
+    setAttachmentName('');
+    setAttachmentUrl('');
+  };
+
   // Sync Rich edits back to generated HTML
   useEffect(() => {
     if (editorMode === 'rich') {
@@ -339,6 +370,8 @@ function Step4({ data, setData }) {
         messageParagraph2,
         ctaButtonText,
         ctaButtonUrl,
+        attachmentUrl,
+        attachmentName,
         companyName,
         companyAddress,
         footerLinks,
@@ -362,6 +395,9 @@ function Step4({ data, setData }) {
         messageParagraph2,
         ctaButtonText,
         ctaButtonUrl,
+        attachment,
+        attachmentName,
+        attachmentUrl,
         headerBg,
         buttonBg,
         footerBg,
@@ -373,6 +409,7 @@ function Step4({ data, setData }) {
   }, [
     editorMode, headingText, subheadingText, greetingText,
     messageParagraph1, messageParagraph2, ctaButtonText, ctaButtonUrl,
+    attachment, attachmentName, attachmentUrl,
     headerBg, buttonBg, footerBg, companyName, companyAddress, footerLinks, currentTemplate
   ]);
 
@@ -525,6 +562,71 @@ function Step4({ data, setData }) {
             </div>
           </div>
 
+          {/* PDF / File Attachment Section */}
+          <div className="bg-white p-3 rounded-lg border border-gray-200 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-700">
+                <Paperclip size={13} className="text-blue-600" />
+                <span>Attachment & Document (PDF / DOC)</span>
+              </div>
+              {attachment && (
+                <span className="text-[10px] text-green-600 font-semibold bg-green-50 px-2 py-0.5 rounded">
+                  Ready to attach
+                </span>
+              )}
+            </div>
+
+            <p className="text-[10px] text-gray-500">
+              Attach a PDF product brochure, clinical report, or catalog. It will be delivered both as a clickable in-email download box and as a direct SES email attachment.
+            </p>
+
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept=".pdf,.doc,.docx,.xlsx,.png,.jpg,.jpeg"
+              className="hidden"
+            />
+
+            {attachment ? (
+              <div className="flex items-center justify-between p-2.5 bg-blue-50/60 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 bg-blue-100 rounded flex items-center justify-center text-blue-600">
+                    <FileText size={15} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-gray-900 truncate max-w-[280px]">
+                      {attachmentName}
+                    </div>
+                    <div className="text-[10px] text-gray-500">
+                      Uploaded &bull; <a href={attachmentUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">Preview File</a>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemoveAttachment}
+                  className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                  title="Remove attachment"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ) : (
+              <div>
+                <button
+                  type="button"
+                  disabled={uploadingAttachment}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-2 py-2 px-3 border border-dashed border-gray-300 rounded-lg text-xs font-medium text-gray-600 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50/30 transition-colors disabled:opacity-50"
+                >
+                  <Upload size={13} className={uploadingAttachment ? 'animate-spin' : ''} />
+                  <span>{uploadingAttachment ? 'Uploading Document...' : '+ Upload PDF / Document Attachment'}</span>
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Footer Configuration & Links */}
           <div className="bg-white p-3 rounded-lg border border-gray-200 space-y-2">
             <div className="text-[11px] font-bold text-gray-700">Footer Details & Navigation Links</div>
@@ -639,6 +741,8 @@ function Step5({ data, onClose, setActivePage, initialCampaign = null }) {
         sender_email: data.senderEmail || 'info@nvron.in',
         target_lists: data.selectedLists || [],
         compiled_html: data.emailBody || '<h1>Hello {{first_name}}</h1><p>Thank you for subscribing!</p>',
+        attachment: data.attachment || null,
+        attachment_name: data.attachmentName || '',
       };
 
       let campaignId = initialCampaign?.id;
@@ -693,6 +797,8 @@ function Step5({ data, onClose, setActivePage, initialCampaign = null }) {
         sender_email: data.senderEmail || 'info@nvron.in',
         target_lists: data.selectedLists || [],
         compiled_html: data.emailBody || '<h1>Hello {{first_name}}</h1><p>Thank you for subscribing!</p>',
+        attachment: data.attachment || null,
+        attachment_name: data.attachmentName || '',
         scheduled_at: chosenTime.toISOString(),
       };
 
@@ -723,6 +829,7 @@ function Step5({ data, onClose, setActivePage, initialCampaign = null }) {
     { label: 'Subject Line', status: data.subject ? 'Passed' : 'Missing', ok: !!data.subject },
     { label: 'Sender Verification', status: 'Verified (AWS SES)', ok: true },
     { label: 'Audience Selected', status: data.selectedLists.length > 0 ? `${data.selectedLists.length} list(s)` : 'None selected', ok: data.selectedLists.length > 0 },
+    { label: 'Attachment', status: data.attachmentName ? `Attached (${data.attachmentName})` : 'None (Text & HTML)', ok: true },
     { label: 'Template Selected', status: data.template ? 'Connected & Styled' : 'Default Applied', ok: true },
     { label: 'Suppression Check', status: 'Cleared', ok: true },
     { label: 'SPAM Score', status: '0.2 / 10 — Excellent', ok: true },
@@ -878,6 +985,9 @@ export default function CampaignWizard({ onClose, setActivePage, initialCampaign
       footerLinks: defaultTpl.defaultContent.footerLinks,
       companyName: defaultTpl.defaultContent.companyName,
       companyAddress: defaultTpl.defaultContent.companyAddress,
+      attachment: initialCampaign?.attachment || '',
+      attachmentName: initialCampaign?.attachment_name || '',
+      attachmentUrl: initialCampaign?.attachment_url || '',
       emailBody: initialHtml,
     };
   });

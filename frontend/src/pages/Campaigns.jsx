@@ -20,9 +20,10 @@ export default function Campaigns({ onCreateCampaign, onEditCampaign, setActiveP
   const fetchCampaigns = async () => {
     setLoading(true);
     try {
-      const data = await api.campaigns.list();
+      const data = await api.campaigns.list({ page_size: 1000 });
+      const rawList = Array.isArray(data) ? data : (data?.results || []);
       // Map API format if necessary
-      const formatted = (data || []).map(c => {
+      const formatted = rawList.map(c => {
         // Zoho standard: rates calculated against sent_count (actual emails dispatched)
         // Fall back to total_recipients if sent_count is 0
         const sent = c.sent_count || c.total_recipients || 0;

@@ -41,8 +41,7 @@ export const api = {
   campaigns: {
     async list(params = {}) {
       const query = new URLSearchParams(params).toString();
-      const res = await request(`/campaigns/${query ? `?${query}` : ''}`);
-      return res.results || res;
+      return await request(`/campaigns/${query ? `?${query}` : ''}`);
     },
     async get(id) {
       return await request(`/campaigns/${id}/`);
@@ -83,14 +82,27 @@ export const api = {
     async getDashboardOverview() {
       return await request('/campaigns/dashboard-overview/');
     },
+    async uploadAttachment(file) {
+      const formData = new FormData();
+      formData.append('file', file);
+      const url = `${BASE_URL}/campaigns/upload-attachment/`;
+      const res = await fetch(url, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP Error ${res.status}`);
+      }
+      return await res.json();
+    },
   },
 
   // Contacts
   contacts: {
     async list(params = {}) {
       const query = new URLSearchParams(params).toString();
-      const res = await request(`/contacts/contacts/${query ? `?${query}` : ''}`);
-      return res.results || res;
+      return await request(`/contacts/contacts/${query ? `?${query}` : ''}`);
     },
     async create(data) {
       return await request('/contacts/contacts/', {
@@ -111,9 +123,9 @@ export const api = {
 
   // Lists
   lists: {
-    async list() {
-      const res = await request('/contacts/lists/');
-      return res.results || res;
+    async list(params = {}) {
+      const query = new URLSearchParams(params).toString();
+      return await request(`/contacts/lists/${query ? `?${query}` : ''}`);
     },
     async create(data) {
       return await request('/contacts/lists/', {
@@ -152,9 +164,9 @@ export const api = {
 
   // Suppression
   suppression: {
-    async list() {
-      const res = await request('/contacts/suppression/');
-      return res.results || res;
+    async list(params = {}) {
+      const query = new URLSearchParams(params).toString();
+      return await request(`/contacts/suppression/${query ? `?${query}` : ''}`);
     },
     async add(email, reason = 'ADMIN_SUPPRESSION') {
       return await request('/contacts/suppression/', {
