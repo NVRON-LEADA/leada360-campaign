@@ -184,15 +184,30 @@ class CampaignViewSet(viewsets.ModelViewSet):
                 'error': f'Cannot send campaign: The assigned list(s) contain 0 active/eligible contacts. Please add contacts to the list before sending.'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        print(f"[LAUNCH] Triggering dispatch for Campaign '{campaign.title}' (ID: {campaign.id}) with {eligible_contacts_count} recipients")
-        # Immediate synchronous execution (0-second delay directly via AWS SES)
-        prepare_campaign_chunks(str(campaign.id))
-        campaign.refresh_from_db()
-        print(f"[LAUNCH DONE] Campaign '{campaign.title}' status is now: {campaign.status}")
+        print(f"[LAUNCH] Triggering background dispatch for Campaign '{campaign.title}' (ID: {campaign.id}) with {eligible_contacts_count} recipients")
+        
+        # Mark campaign as PROCESSING immediately so UI shows progress
+        campaign.status = CampaignStatus.PROCESSING
+        campaign.started_at = timezone.now()
+        campaign.save(update_fields=['status', 'started_at'])
+
+        # Launch dispatch in a detached background thread so HTTP request returns 200 immediately
+        # (Prevents Nginx / Gunicorn 504 Gateway Timeout during large 7000+ recipient dispatches)
+        import threading
+        def bg_dispatch(cid):
+            try:
+                from .tasks import prepare_campaign_chunks
+                prepare_campaign_chunks(cid)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"[BG DISPATCH ERROR] {e}")
+
+        thread = threading.Thread(target=bg_dispatch, args=(str(campaign.id),), daemon=True)
+        thread.start()
 
         return Response({
-            'status': 'completed' if campaign.status == CampaignStatus.COMPLETED else 'sent',
-            'message': f'Campaign "{campaign.title}" dispatched immediately via AWS SES to {eligible_contacts_count} contacts.'
+            'status': 'processing',
+            'message': f'Campaign "{campaign.title}" is actively dispatching via AWS SES to {eligible_contacts_count} recipients.'
         }, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], url_path='schedule')
