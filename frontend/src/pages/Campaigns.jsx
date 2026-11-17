@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Filter, MoreHorizontal, Eye, Edit, Trash2, Copy, RefreshCw, Send } from 'lucide-react';
+import { Plus, Search, Filter, MoreHorizontal, Eye, Edit, Trash2, Copy, RefreshCw, Send, Mail } from 'lucide-react';
 import StatusBadge from '../components/common/StatusBadge';
 import Pagination from '../components/common/Pagination';
 import { api } from '../services/api';
