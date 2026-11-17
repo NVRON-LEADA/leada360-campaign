@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, ChevronRight, ChevronLeft, Check, Send, AlertCircle, CheckCircle, Monitor, Smartphone, Palette, Eye, Calendar, Clock, Paperclip, FileText, Upload, Trash2 } from 'lucide-react';
-import { templates, generateEmailHtml } from '../../mockData/templates';
+import { X, ChevronRight, ChevronLeft, Check, Send, AlertCircle, CheckCircle, Monitor, Smartphone, Palette, Eye, Calendar, Clock, Paperclip, FileText, Upload, Trash2, Loader2 } from 'lucide-react';
+import { templates as fallbackTemplates, generateEmailHtml } from '../../mockData/templates';
 import { api } from '../../services/api';
 
 const STEPS = ['Campaign Details', 'Audience', 'Template Selection', 'Email Builder & Styling', 'Review & Send'];
@@ -169,7 +169,7 @@ function Step2({ data, setData }) {
   );
 }
 
-function Step3({ data, setData }) {
+function Step3({ data, setData, templatesList = fallbackTemplates, templatesLoading = false }) {
   const [previewTpl, setPreviewTpl] = useState(null);
 
   const applyTemplate = (t) => {
@@ -218,58 +218,72 @@ function Step3({ data, setData }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        {templates.map(t => {
-          const isSelected = data.template === t.id;
-          return (
-            <div 
-              key={t.id} 
-              onClick={() => applyTemplate(t)}
-              className={`border-2 rounded-lg overflow-hidden cursor-pointer transition-all flex flex-col justify-between ${
-                isSelected ? 'border-blue-600 ring-2 ring-blue-600/20 shadow-md' : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <div 
-                className="h-24 flex flex-col items-center justify-center relative text-white" 
-                style={{ backgroundColor: t.theme?.headerBg || t.previewColor }}
-              >
-                <div className="text-3xl mb-1">{t.thumbnail}</div>
-                <span className="text-[9px] font-semibold uppercase px-2 py-0.5 rounded bg-black/25">
-                  {t.category}
-                </span>
-
-                {isSelected && (
-                  <div className="absolute top-2 right-2">
-                    <Check size={16} className="text-white bg-blue-600 rounded-full p-0.5 shadow" />
-                  </div>
-                )}
-              </div>
-
-              <div className="p-2.5 flex-1 flex flex-col justify-between bg-white">
-                <div>
-                  <div className="text-xs font-bold text-gray-900 line-clamp-1">{t.name}</div>
-                  <div className="text-[10px] text-gray-500 mt-0.5 line-clamp-2">{t.description}</div>
-                </div>
-
-                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-                  <div className="flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: t.theme?.headerBg }} title="Header" />
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: t.theme?.buttonBg }} title="Button" />
-                    <span className="w-2.5 h-2.5 rounded-full border border-gray-300" style={{ backgroundColor: t.theme?.footerBg }} title="Footer" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setPreviewTpl(t); }}
-                    className="text-[10px] text-blue-600 hover:underline flex items-center gap-0.5 font-medium"
-                  >
-                    <Eye size={10} /> Preview
-                  </button>
-                </div>
+      {templatesLoading ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <div key={`tpl-skel-${idx}`} className="border border-gray-200 rounded-lg overflow-hidden animate-pulse">
+              <div className="h-24 bg-gray-200"></div>
+              <div className="p-3 space-y-2">
+                <div className="h-3.5 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-2.5 bg-gray-100 rounded w-full"></div>
               </div>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {templatesList.map(t => {
+            const isSelected = String(data.template) === String(t.id);
+            return (
+              <div 
+                key={t.id} 
+                onClick={() => applyTemplate(t)}
+                className={`border-2 rounded-lg overflow-hidden cursor-pointer transition-all flex flex-col justify-between ${
+                  isSelected ? 'border-blue-600 ring-2 ring-blue-600/20 shadow-md' : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div 
+                  className="h-24 flex flex-col items-center justify-center relative text-white" 
+                  style={{ backgroundColor: t.theme?.headerBg || t.previewColor }}
+                >
+                  <div className="text-3xl mb-1">{t.thumbnail}</div>
+                  <span className="text-[9px] font-semibold uppercase px-2 py-0.5 rounded bg-black/25">
+                    {t.category}
+                  </span>
+
+                  {isSelected && (
+                    <div className="absolute top-2 right-2">
+                      <Check size={16} className="text-white bg-blue-600 rounded-full p-0.5 shadow" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-2.5 flex-1 flex flex-col justify-between bg-white">
+                  <div>
+                    <div className="text-xs font-bold text-gray-900 line-clamp-1">{t.name}</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5 line-clamp-2">{t.description}</div>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                    <div className="flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: t.theme?.headerBg }} title="Header" />
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: t.theme?.buttonBg }} title="Button" />
+                      <span className="w-2.5 h-2.5 rounded-full border border-gray-300" style={{ backgroundColor: t.theme?.footerBg }} title="Footer" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setPreviewTpl(t); }}
+                      className="text-[10px] text-blue-600 hover:underline flex items-center gap-0.5 font-medium"
+                    >
+                      <Eye size={10} /> Preview
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {previewTpl && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -302,16 +316,16 @@ function Step4({ data, setData }) {
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const fileInputRef = useRef(null);
 
-  const currentTemplate = data.selectedTemplateObj || templates.find(t => t.id === data.template) || templates[0];
+  const currentTemplate = data.selectedTemplateObj || fallbackTemplates.find(t => String(t.id) === String(data.template)) || fallbackTemplates[0];
 
   // Editable Form Fields
-  const [headingText, setHeadingText] = useState(data.headingText || currentTemplate.defaultContent.headingText);
-  const [subheadingText, setSubheadingText] = useState(data.subheadingText || currentTemplate.defaultContent.subheadingText);
-  const [greetingText, setGreetingText] = useState(data.greetingText || currentTemplate.defaultContent.greetingText);
-  const [messageParagraph1, setMessageParagraph1] = useState(data.messageParagraph1 || currentTemplate.defaultContent.messageParagraph1);
-  const [messageParagraph2, setMessageParagraph2] = useState(data.messageParagraph2 || currentTemplate.defaultContent.messageParagraph2);
-  const [ctaButtonText, setCtaButtonText] = useState(data.ctaButtonText || currentTemplate.defaultContent.ctaButtonText);
-  const [ctaButtonUrl, setCtaButtonUrl] = useState(data.ctaButtonUrl || currentTemplate.defaultContent.ctaButtonUrl);
+  const [headingText, setHeadingText] = useState(data.headingText || currentTemplate.defaultContent?.headingText || '');
+  const [subheadingText, setSubheadingText] = useState(data.subheadingText || currentTemplate.defaultContent?.subheadingText || '');
+  const [greetingText, setGreetingText] = useState(data.greetingText || currentTemplate.defaultContent?.greetingText || 'Dear {{first_name}},');
+  const [messageParagraph1, setMessageParagraph1] = useState(data.messageParagraph1 || currentTemplate.defaultContent?.messageParagraph1 || '');
+  const [messageParagraph2, setMessageParagraph2] = useState(data.messageParagraph2 || currentTemplate.defaultContent?.messageParagraph2 || '');
+  const [ctaButtonText, setCtaButtonText] = useState(data.ctaButtonText || currentTemplate.defaultContent?.ctaButtonText || 'Learn More');
+  const [ctaButtonUrl, setCtaButtonUrl] = useState(data.ctaButtonUrl || currentTemplate.defaultContent?.ctaButtonUrl || 'https://nvron.in');
 
   // Attachment states
   const [attachment, setAttachment] = useState(data.attachment || '');
@@ -319,17 +333,17 @@ function Step4({ data, setData }) {
   const [attachmentUrl, setAttachmentUrl] = useState(data.attachmentUrl || '');
 
   // Editable Color Theme
-  const [headerBg, setHeaderBg] = useState(data.headerBg || currentTemplate.theme.headerBg);
-  const [buttonBg, setButtonBg] = useState(data.buttonBg || currentTemplate.theme.buttonBg);
-  const [footerBg, setFooterBg] = useState(data.footerBg || currentTemplate.theme.footerBg);
+  const [headerBg, setHeaderBg] = useState(data.headerBg || currentTemplate.theme?.headerBg || '#1e3a8a');
+  const [buttonBg, setButtonBg] = useState(data.buttonBg || currentTemplate.theme?.buttonBg || '#2563eb');
+  const [footerBg, setFooterBg] = useState(data.footerBg || currentTemplate.theme?.footerBg || '#f8fafc');
 
   // Editable Footer Details
-  const [companyName, setCompanyName] = useState(data.companyName || currentTemplate.defaultContent.companyName);
-  const [companyAddress, setCompanyAddress] = useState(data.companyAddress || currentTemplate.defaultContent.companyAddress);
+  const [companyName, setCompanyName] = useState(data.companyName || currentTemplate.defaultContent?.companyName || 'NVRON Life Science Ltd');
+  const [companyAddress, setCompanyAddress] = useState(data.companyAddress || currentTemplate.defaultContent?.companyAddress || 'Bangalore, India');
 
   // Footer links (e.g., Privacy, Terms, Support)
   const [footerLinks, setFooterLinks] = useState(
-    data.footerLinks || currentTemplate.defaultContent.footerLinks || [
+    data.footerLinks || currentTemplate.defaultContent?.footerLinks || [
       { label: 'Privacy Policy', url: 'https://nvron.in/privacy' },
       { label: 'Terms of Service', url: 'https://nvron.in/terms' },
       { label: 'Support', url: 'https://nvron.in/contact' },
@@ -946,7 +960,41 @@ function Step5({ data, onClose, setActivePage, initialCampaign = null }) {
 }
 
 export default function CampaignWizard({ onClose, setActivePage, initialCampaign = null, initialTemplate = null }) {
-  const defaultTpl = initialTemplate || templates[0];
+  const [dbTemplates, setDbTemplates] = useState([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+
+  useEffect(() => {
+    async function loadTemplatesFromDb() {
+      setLoadingTemplates(true);
+      try {
+        const res = await api.templates.list();
+        const list = Array.isArray(res) ? res : (res?.results || []);
+        if (list.length > 0) {
+          const mapped = list.map(item => ({
+            id: item.id,
+            name: item.name,
+            category: item.category,
+            thumbnail: item.thumbnail || '📧',
+            description: item.description || '',
+            previewColor: item.preview_color || item.theme?.headerBg || '#1e3a8a',
+            theme: item.theme || {},
+            defaultContent: item.default_content || {},
+          }));
+          setDbTemplates(mapped);
+        } else {
+          setDbTemplates(fallbackTemplates);
+        }
+      } catch (err) {
+        console.error('Failed to load templates in wizard:', err);
+        setDbTemplates(fallbackTemplates);
+      } finally {
+        setLoadingTemplates(false);
+      }
+    }
+    loadTemplatesFromDb();
+  }, []);
+
+  const defaultTpl = initialTemplate || fallbackTemplates[0];
 
   // Resolve target list IDs from initialCampaign (handles array of UUIDs or array of list objects)
   const resolveTargetLists = (campaign) => {
@@ -975,16 +1023,16 @@ export default function CampaignWizard({ onClose, setActivePage, initialCampaign
       headerBg: defaultTpl.theme?.headerBg || '#1e3a8a',
       buttonBg: defaultTpl.theme?.buttonBg || '#2563eb',
       footerBg: defaultTpl.theme?.footerBg || '#f8fafc',
-      headingText: defaultTpl.defaultContent.headingText,
-      subheadingText: defaultTpl.defaultContent.subheadingText,
-      greetingText: defaultTpl.defaultContent.greetingText,
-      messageParagraph1: defaultTpl.defaultContent.messageParagraph1,
-      messageParagraph2: defaultTpl.defaultContent.messageParagraph2,
-      ctaButtonText: defaultTpl.defaultContent.ctaButtonText,
-      ctaButtonUrl: defaultTpl.defaultContent.ctaButtonUrl,
-      footerLinks: defaultTpl.defaultContent.footerLinks,
-      companyName: defaultTpl.defaultContent.companyName,
-      companyAddress: defaultTpl.defaultContent.companyAddress,
+      headingText: defaultTpl.defaultContent?.headingText || '',
+      subheadingText: defaultTpl.defaultContent?.subheadingText || '',
+      greetingText: defaultTpl.defaultContent?.greetingText || 'Dear {{first_name}},',
+      messageParagraph1: defaultTpl.defaultContent?.messageParagraph1 || '',
+      messageParagraph2: defaultTpl.defaultContent?.messageParagraph2 || '',
+      ctaButtonText: defaultTpl.defaultContent?.ctaButtonText || 'Learn More',
+      ctaButtonUrl: defaultTpl.defaultContent?.ctaButtonUrl || 'https://nvron.in',
+      footerLinks: defaultTpl.defaultContent?.footerLinks || [],
+      companyName: defaultTpl.defaultContent?.companyName || 'NVRON Life Science Ltd',
+      companyAddress: defaultTpl.defaultContent?.companyAddress || 'Bangalore, India',
       attachment: initialCampaign?.attachment || '',
       attachmentName: initialCampaign?.attachment_name || '',
       attachmentUrl: initialCampaign?.attachment_url || '',
@@ -992,10 +1040,12 @@ export default function CampaignWizard({ onClose, setActivePage, initialCampaign
     };
   });
 
+  const activeTemplates = dbTemplates.length > 0 ? dbTemplates : fallbackTemplates;
+
   const stepComponents = [
     <Step1 data={data} setData={setData} />,
     <Step2 data={data} setData={setData} />,
-    <Step3 data={data} setData={setData} />,
+    <Step3 data={data} setData={setData} templatesList={activeTemplates} templatesLoading={loadingTemplates} />,
     <Step4 data={data} setData={setData} />,
     <Step5 data={data} onClose={onClose} setActivePage={setActivePage} initialCampaign={initialCampaign} />,
   ];
