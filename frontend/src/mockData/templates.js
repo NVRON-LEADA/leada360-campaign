@@ -245,38 +245,92 @@ export const templates = [
  * Compiles a bulletproof, responsive HTML email string from a template and customized content fields.
  * Compatible with all major email clients (Gmail, Outlook, Apple Mail, Yahoo).
  */
+function formatParagraphsToHtml(rawText) {
+  if (!rawText) return '';
+  // Split on double newlines or single newlines
+  const lines = rawText.split('\n');
+  let html = '';
+  let inList = false;
+
+  for (let line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (inList) {
+        html += '</ul>';
+        inList = false;
+      }
+      continue;
+    }
+
+    // Bullet points (* or -)
+    if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
+      if (!inList) {
+        html += '<ul style="margin: 8px 0 14px 20px; padding: 0; color: #334155;">';
+        inList = true;
+      }
+      html += `<li style="margin-bottom: 6px; line-height: 1.5;">${trimmed.substring(2)}</li>`;
+      continue;
+    }
+
+    if (inList) {
+      html += '</ul>';
+      inList = false;
+    }
+
+    // Contact details structured line (Email, Website, Phone)
+    if (trimmed.startsWith('📧') || trimmed.startsWith('🌐') || trimmed.startsWith('📞')) {
+      html += `<div style="margin: 4px 0; font-size: 13px; color: #1e293b; display: flex; align-items: center; gap: 6px;">${trimmed}</div>`;
+      continue;
+    }
+
+    html += `<p style="margin: 0 0 12px 0; line-height: 1.65; color: #334155;">${trimmed}</p>`;
+  }
+
+  if (inList) {
+    html += '</ul>';
+  }
+
+  return html;
+}
+
 export function generateEmailHtml(template, contentOverrides = {}) {
   const t = template || templates[0];
   const theme = { ...t.theme, ...(contentOverrides.theme || {}) };
   const content = { ...t.defaultContent, ...contentOverrides };
 
-  const footerLinksHtml = (content.footerLinks || [])
-    .map(link => `<a href="${link.url}" style="color: ${theme.accentColor}; text-decoration: none; margin: 0 8px; font-weight: 500;">${link.label}</a>`)
-    .join(' · ');
+  // Only render footerLinks if explicitly provided and not empty
+  const hasFooterLinks = Array.isArray(content.footerLinks) && content.footerLinks.length > 0;
+  const footerLinksHtml = hasFooterLinks
+    ? `<div style="margin-bottom: 10px; font-size: 12px;">` +
+      content.footerLinks
+        .map(link => `<a href="${link.url}" style="color: ${theme.accentColor || '#2563eb'}; text-decoration: none; margin: 0 8px; font-weight: 500;">${link.label}</a>`)
+        .join(' · ') +
+      `</div>`
+    : '';
+
+  const bodyPara1Html = formatParagraphsToHtml(content.messageParagraph1);
+  const bodyPara2Html = formatParagraphsToHtml(content.messageParagraph2);
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${content.headingText}</title>
+  <title>${content.headingText || t.name}</title>
 </head>
 <body style="margin: 0; padding: 24px 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
   <center>
     <!-- Email Container Card -->
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: ${theme.bodyBg}; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; text-align: left;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: ${theme.bodyBg || '#ffffff'}; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; text-align: left;">
       
       <!-- Header Banner Section -->
       <tr>
-        <td style="background-color: ${theme.headerBg}; padding: 32px 28px; text-align: center;">
-          <div style="display: inline-block; padding: 4px 12px; background-color: rgba(255,255,255,0.15); border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #ffffff; margin-bottom: 12px;">
-            ${t.name}
-          </div>
-          <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: ${theme.headerTextColor}; letter-spacing: -0.02em; line-height: 1.3;">
-            ${content.headingText}
+        <td style="background-color: ${theme.headerBg}; padding: 28px 24px; text-align: center;">
+          <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: ${theme.headerTextColor || '#ffffff'}; letter-spacing: -0.02em; line-height: 1.35;">
+            ${content.headingText || t.name}
           </h1>
           ${content.subheadingText ? `
-          <p style="margin: 8px 0 0 0; font-size: 13px; color: ${theme.headerTextColor}; opacity: 0.88; line-height: 1.4;">
+          <p style="margin: 8px 0 0 0; font-size: 13px; color: ${theme.headerTextColor || '#ffffff'}; opacity: 0.9; line-height: 1.4;">
             ${content.subheadingText}
           </p>` : ''}
         </td>
@@ -284,22 +338,19 @@ export function generateEmailHtml(template, contentOverrides = {}) {
 
       <!-- Body Message Section -->
       <tr>
-        <td style="padding: 32px 30px; color: #334155; font-size: 14px; line-height: 1.65;">
+        <td style="padding: 28px 30px; color: #334155; font-size: 14px; line-height: 1.65;">
+          ${content.greetingText ? `
           <p style="margin-top: 0; margin-bottom: 14px; font-weight: 600; font-size: 15px; color: #0f172a;">
             ${content.greetingText}
-          </p>
-          <p style="margin: 0 0 14px 0;">
-            ${content.messageParagraph1}
-          </p>
-          ${content.messageParagraph2 ? `
-          <p style="margin: 0 0 20px 0;">
-            ${content.messageParagraph2}
           </p>` : ''}
+          
+          ${bodyPara1Html}
+          ${bodyPara2Html}
 
           <!-- Call-To-Action Button -->
           ${content.ctaButtonText ? `
           <div style="text-align: center; margin: 28px 0 20px 0;">
-            <a href="${content.ctaButtonUrl}" style="background-color: ${theme.buttonBg}; color: ${theme.buttonTextColor}; padding: 13px 28px; text-decoration: none; font-size: 14px; font-weight: 700; border-radius: 6px; display: inline-block; box-shadow: 0 2px 6px rgba(0,0,0,0.12);">
+            <a href="${content.ctaButtonUrl || '#'}" style="background-color: ${theme.buttonBg || '#2563eb'}; color: ${theme.buttonTextColor || '#ffffff'}; padding: 12px 28px; text-decoration: none; font-size: 14px; font-weight: 700; border-radius: 6px; display: inline-block; box-shadow: 0 2px 6px rgba(0,0,0,0.12);">
               ${content.ctaButtonText} &rarr;
             </a>
           </div>` : ''}
@@ -327,20 +378,20 @@ export function generateEmailHtml(template, contentOverrides = {}) {
         </td>
       </tr>
 
-      <!-- Footer Section with Links and Mandatory Compliance -->
+      <!-- Clean Professional Footer -->
       <tr>
-        <td style="background-color: ${theme.footerBg}; padding: 24px 28px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: ${theme.footerTextColor}; line-height: 1.6;">
-          <div style="margin-bottom: 10px; font-size: 12px;">
-            ${footerLinksHtml}
-          </div>
-          <div style="font-weight: 700; color: #334155; margin-bottom: 4px;">
+        <td style="background-color: ${theme.footerBg || '#f8fafc'}; padding: 20px 24px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: ${theme.footerTextColor || '#64748b'}; line-height: 1.6;">
+          ${footerLinksHtml}
+          ${content.companyName ? `
+          <div style="font-weight: 700; color: #334155; margin-bottom: 4px; font-size: 12px;">
             ${content.companyName}
-          </div>
-          <div style="margin-bottom: 8px; opacity: 0.85;">
+          </div>` : ''}
+          ${content.companyAddress ? `
+          <div style="margin-bottom: 8px; opacity: 0.85; max-width: 480px; margin-left: auto; margin-right: auto;">
             ${content.companyAddress}
-          </div>
-          <div style="font-size: 10px; opacity: 0.75; border-top: 1px dashed #cbd5e1; padding-top: 8px; margin-top: 8px;">
-            You received this email because you are a registered partner. If you prefer not to receive updates, you can safely <a href="{{unsubscribe_url}}" style="color: ${theme.accentColor}; text-decoration: underline;">unsubscribe here</a>.
+          </div>` : ''}
+          <div style="font-size: 10px; opacity: 0.75; border-top: 1px solid #e2e8f0; padding-top: 8px; margin-top: 8px;">
+            If you wish to unsubscribe from our mailings, please <a href="{{unsubscribe_url}}" style="color: ${theme.accentColor || '#2563eb'}; text-decoration: underline;">unsubscribe here</a>.
           </div>
         </td>
       </tr>
