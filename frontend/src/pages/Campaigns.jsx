@@ -61,6 +61,47 @@ export default function Campaigns({ onCreateCampaign, onEditCampaign, setActiveP
 
   useEffect(() => {
     fetchCampaigns();
+    // Auto-poll every 5 seconds if any campaign is currently Processing
+    const interval = setInterval(() => {
+      api.campaigns.list({ page_size: 1000 }).then(data => {
+        const rawList = Array.isArray(data) ? data : (data?.results || []);
+        const hasProcessing = rawList.some(c => c.status === 'PROCESSING');
+        if (hasProcessing) {
+          const formatted = rawList.map(c => {
+            const sent = c.sent_count || c.total_recipients || 0;
+            return {
+              id: c.id,
+              name: c.title,
+              subject: c.subject,
+              sender: c.sender_email || c.sender,
+              status: c.status === 'COMPLETED' ? 'Sent' : (c.status || 'Draft').charAt(0).toUpperCase() + (c.status || 'draft').slice(1).toLowerCase(),
+              recipients: sent || c.recipients || 0,
+              openRate: sent > 0 ? Number(((c.open_count / sent) * 100).toFixed(1)) : 0,
+              clickRate: sent > 0 ? Number(((c.click_count / sent) * 100).toFixed(1)) : 0,
+              bounceRate: sent > 0 ? Number(((c.bounce_count / sent) * 100).toFixed(1)) : 0,
+              type: c.campaign_type || 'Regular',
+              date: c.created_at ? new Date(c.created_at).toLocaleDateString() : 'Today',
+              sentAt: c.started_at ? new Date(c.started_at).toLocaleString() : null,
+              isAB: c.campaign_type === 'AB_TEST',
+              open_count: c.open_count,
+              click_count: c.click_count,
+              bounce_count: c.bounce_count,
+              sent_count: c.sent_count,
+              total_recipients: c.total_recipients,
+              compiled_html: c.compiled_html,
+              sender_email: c.sender_email,
+              target_lists: c.target_lists,
+              attachment: c.attachment,
+              attachment_name: c.attachment_name,
+              attachment_url: c.attachment_url,
+            };
+          });
+          setCampaignList(formatted);
+        }
+      }).catch(() => {});
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
   // Reset to first page when filtering or searching
