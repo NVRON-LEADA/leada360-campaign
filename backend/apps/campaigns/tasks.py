@@ -103,10 +103,28 @@ def prepare_campaign_chunks(self, campaign_id):
     ]
     CampaignDispatch.objects.bulk_create(dispatches, ignore_conflicts=True, batch_size=2000)
 
+    # Fetch ONLY contacts whose dispatch status is still QUEUED (skips already SENT contacts on resume)
+    pending_contact_ids = list(
+        CampaignDispatch.objects.filter(
+            campaign=campaign,
+            status=DispatchStatus.QUEUED
+        ).values_list('contact_id', flat=True)
+    )
+
+    logger.info(f"[DISPATCH] Campaign '{campaign.title}': {len(pending_contact_ids)} contacts pending out of {total_count} total.")
+
+    if not pending_contact_ids:
+        actual_sent = CampaignDispatch.objects.filter(campaign=campaign, status=DispatchStatus.SENT).count()
+        campaign.sent_count = actual_sent
+        campaign.status = CampaignStatus.COMPLETED
+        campaign.completed_at = timezone.now()
+        campaign.save(update_fields=['sent_count', 'status', 'completed_at'])
+        return
+
     # Chunking: 50 recipients per worker job to keep DB transactions active and prevent timeouts
     CHUNK_SIZE = 50
-    for i in range(0, total_count, CHUNK_SIZE):
-        chunk_cids = [str(cid) for cid in contact_id_list[i:i + CHUNK_SIZE]]
+    for i in range(0, len(pending_contact_ids), CHUNK_SIZE):
+        chunk_cids = [str(cid) for cid in pending_contact_ids[i:i + CHUNK_SIZE]]
         try:
             _run_dispatch_chunk(str(campaign.id), chunk_cids)
         except Exception as chunk_err:
@@ -162,6 +180,12 @@ def _run_dispatch_chunk(campaign_id, contact_ids):
     logger.info(f"[DISPATCH] Campaign '{campaign.title}': sending to {contacts.count()} contacts in this chunk.")
 
     for contact in contacts:
+        # Check dispatch status to avoid duplicate sends
+        dispatch = CampaignDispatch.objects.filter(campaign=campaign, contact=contact).first()
+        if dispatch and dispatch.status in [DispatchStatus.SENT, DispatchStatus.DELIVERED]:
+            logger.info(f"[DISPATCH SKIP] {contact.email} already {dispatch.status}")
+            continue
+
         # Merge tags personalization
         body = base_template.replace('{{first_name}}', contact.first_name or 'there')
         body = body.replace('{{last_name}}', contact.last_name or '')

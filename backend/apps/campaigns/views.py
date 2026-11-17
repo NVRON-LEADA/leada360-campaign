@@ -153,8 +153,8 @@ class CampaignViewSet(viewsets.ModelViewSet):
     def launch_campaign(self, request, pk=None):
         campaign = self.get_object()
 
-        if campaign.status == CampaignStatus.PROCESSING:
-            return Response({'error': 'Campaign is already processing.'}, status=status.HTTP_400_BAD_REQUEST)
+        if campaign.status == CampaignStatus.COMPLETED:
+            return Response({'error': 'Cannot send: Campaign has already completed.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if not campaign.subject or not campaign.sender_email:
             return Response({'error': 'Subject and sender email are required.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -184,12 +184,16 @@ class CampaignViewSet(viewsets.ModelViewSet):
                 'error': f'Cannot send campaign: The assigned list(s) contain 0 active/eligible contacts. Please add contacts to the list before sending.'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        print(f"[LAUNCH] Triggering background dispatch for Campaign '{campaign.title}' (ID: {campaign.id}) with {eligible_contacts_count} recipients")
+        is_resume = (campaign.status == CampaignStatus.PROCESSING)
+        print(f"[LAUNCH] {'Resuming' if is_resume else 'Triggering'} background dispatch for Campaign '{campaign.title}' (ID: {campaign.id}) with {eligible_contacts_count} recipients")
         
         # Mark campaign as PROCESSING immediately so UI shows progress
         campaign.status = CampaignStatus.PROCESSING
-        campaign.started_at = timezone.now()
-        campaign.save(update_fields=['status', 'started_at'])
+        if not campaign.started_at:
+            campaign.started_at = timezone.now()
+            campaign.save(update_fields=['status', 'started_at'])
+        else:
+            campaign.save(update_fields=['status'])
 
         # Launch dispatch in a detached background thread so HTTP request returns 200 immediately
         # (Prevents Nginx / Gunicorn 504 Gateway Timeout during large 7000+ recipient dispatches)
