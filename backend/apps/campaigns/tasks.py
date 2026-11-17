@@ -103,12 +103,14 @@ def prepare_campaign_chunks(self, campaign_id):
     ]
     CampaignDispatch.objects.bulk_create(dispatches, ignore_conflicts=True, batch_size=2000)
 
-    # Chunking: 500 recipients per background worker job
-    CHUNK_SIZE = 500
+    # Chunking: 50 recipients per worker job to keep DB transactions active and prevent timeouts
+    CHUNK_SIZE = 50
     for i in range(0, total_count, CHUNK_SIZE):
         chunk_cids = [str(cid) for cid in contact_id_list[i:i + CHUNK_SIZE]]
-        # Call as a plain function (works with CELERY_TASK_ALWAYS_EAGER=True and direct calls)
-        _run_dispatch_chunk(str(campaign.id), chunk_cids)
+        try:
+            _run_dispatch_chunk(str(campaign.id), chunk_cids)
+        except Exception as chunk_err:
+            logger.error(f"[CHUNK DISPATCH ERROR] {chunk_err}")
 
 
 @shared_task(bind=True, max_retries=3)
@@ -230,10 +232,14 @@ def _run_dispatch_chunk(campaign_id, contact_ids):
             logger.error(f"[SES FAIL] {contact.email} → {err}")
 
     # Atomically update sent_count and mark campaign complete if all done
+    from django.db import connection
+    connection.close()  # Refresh stale DB connection for thread safety
     updated_campaign = Campaign.objects.get(id=campaign.id)
-    new_sent = updated_campaign.sent_count + successful_sends
-    updated_campaign.sent_count = new_sent
-    if new_sent >= updated_campaign.total_recipients and updated_campaign.total_recipients > 0:
+    # Recalculate true sent count from CampaignDispatch table
+    actual_sent = CampaignDispatch.objects.filter(campaign=updated_campaign, status=DispatchStatus.SENT).count()
+    remaining_queued = CampaignDispatch.objects.filter(campaign=updated_campaign, status=DispatchStatus.QUEUED).count()
+    updated_campaign.sent_count = actual_sent
+    if remaining_queued == 0 and updated_campaign.total_recipients > 0:
         updated_campaign.status = CampaignStatus.COMPLETED
         updated_campaign.completed_at = timezone.now()
     updated_campaign.save()
