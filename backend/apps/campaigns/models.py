@@ -58,6 +58,21 @@ class Campaign(models.Model):
         db_table = 'campaigns'
         ordering = ['-created_at']
 
+    def clean_compiled_html(self):
+        if not self.compiled_html:
+            return
+        import re
+        self.compiled_html = re.sub(
+            r'<div[^>]*>[\s\S]*?Official Attached Document[\s\S]*?<\/table>\s*<\/div>',
+            '',
+            self.compiled_html,
+            flags=re.IGNORECASE
+        )
+
+    def save(self, *args, **kwargs):
+        self.clean_compiled_html()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.title} [{self.status}]"
 

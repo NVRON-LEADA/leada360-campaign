@@ -134,15 +134,22 @@ class CampaignViewSet(viewsets.ModelViewSet):
         from .services import SESClientService
         ses = SESClientService()
 
+        import re
         html = campaign.compiled_html or '<p>No email content set.</p>'
+        html = re.sub(r'<div[^>]*>[\s\S]*?Official Attached Document[\s\S]*?<\/table>\s*<\/div>', '', html, flags=re.IGNORECASE)
         html = html.replace('{{first_name}}', 'Test').replace('{{last_name}}', 'User')
         html = html.replace('{{email}}', test_email).replace('{{company}}', 'Test Co')
+
+        att_path = campaign.attachment.path if campaign.attachment and hasattr(campaign.attachment, 'path') else None
+        att_name = campaign.attachment_name or None
 
         result = ses.send_single_email(
             source_email=f"{campaign.sender_name} <{campaign.sender_email}>",
             to_email=test_email,
             subject=f"[TEST] {campaign.subject}",
             html_body=html,
+            attachment_path=att_path,
+            attachment_name=att_name,
         )
 
         if result.get('success'):
@@ -315,7 +322,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
             'preheader': campaign.preheader,
             'sender_email': campaign.sender_email,
             'sender_name': campaign.sender_name,
-            'compiled_html': campaign.compiled_html or '',
+            'compiled_html': re.sub(r'<div[^>]*>[\s\S]*?Official Attached Document[\s\S]*?<\/table>\s*<\/div>', '', campaign.compiled_html or '', flags=re.IGNORECASE),
             'status': campaign.status,
             'total_recipients': campaign.total_recipients,
             'sent_count': campaign.sent_count,
