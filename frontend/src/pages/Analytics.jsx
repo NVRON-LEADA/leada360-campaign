@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { 
   ArrowLeft, Mail, Users, MousePointer, TrendingUp, AlertTriangle, 
-  UserMinus, RefreshCw, CheckCircle2, ShieldCheck, Eye, X, Monitor, Smartphone, Send, Search
+  UserMinus, RefreshCw, CheckCircle2, ShieldCheck, Eye, X, Monitor, Smartphone, Send, Search, ExternalLink
 } from 'lucide-react';
 import StatusBadge from '../components/common/StatusBadge';
 import StatCard from '../components/common/StatCard';
@@ -126,6 +126,14 @@ export default function Analytics({ campaign, setActivePage }) {
   const emailHtml = stats?.compiled_html || campaign.compiled_html || '<p>No email content found.</p>';
   const emailSubject = stats?.subject || campaign.subject || 'WELCOME TO NVRON LIFE SCIENCE LTD';
   const emailSender = stats?.sender_email || campaign.sender || campaign.sender_email || 'info@nvron.in';
+
+  const renderedHtml = useMemo(() => {
+    return (emailHtml || '')
+      .replace(/{{first_name}}/g, 'Dr. Selva')
+      .replace(/{{last_name}}/g, 'Kumar')
+      .replace(/{{email}}/g, 'selva@nvron.in')
+      .replace(/{{company}}/g, 'NVRON Life Science Ltd');
+  }, [emailHtml]);
 
   return (
     <div className="p-5 space-y-5">
@@ -363,60 +371,107 @@ export default function Analytics({ campaign, setActivePage }) {
 
       {/* Modal: View Mail Content */}
       {showMailPreview && (
-        <Modal title="Campaign Email Content & Message Preview" onClose={() => setShowMailPreview(false)} size="lg">
-          <div className="p-4 space-y-4">
-            {/* Header info */}
-            <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 text-xs space-y-1">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Subject:</span>
-                <span className="font-semibold text-gray-900">{emailSubject}</span>
+        <Modal title="Campaign Email Preview" onClose={() => setShowMailPreview(false)} size="xl">
+          <div className="flex flex-col">
+            {/* Top Bar: Subject, Sender & Device Switcher */}
+            <div className="bg-slate-50 border-b border-slate-200 px-5 py-3 flex items-center justify-between gap-4 flex-wrap">
+              <div className="space-y-0.5 min-w-[260px] max-w-lg">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subject:</span>
+                  <span className="text-xs font-bold text-slate-800 truncate" title={emailSubject}>{emailSubject}</span>
+                </div>
+                <div className="flex items-center gap-3 text-[11px] text-slate-500 flex-wrap">
+                  <span><strong className="text-slate-600">From:</strong> {campaign.sender_name ? `${campaign.sender_name} <${emailSender}>` : emailSender}</span>
+                  <span><strong className="text-slate-600">To:</strong> Dr. Selva &lt;selva@nvron.in&gt;</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">From:</span>
-                <span className="font-mono text-gray-800">{emailSender}</span>
-              </div>
-            </div>
 
-            {/* Device Toggle */}
-            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-              <span className="text-xs font-medium text-gray-700">Inbox Rendering:</span>
-              <div className="flex border border-gray-200 rounded overflow-hidden">
+              {/* Device Toggle & Actions */}
+              <div className="flex items-center gap-2.5">
+                <div className="flex bg-slate-200/80 p-0.5 rounded-lg border border-slate-300/50">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDevice('desktop')}
+                    className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                      previewDevice === 'desktop' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Monitor size={13} /> Desktop
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDevice('mobile')}
+                    className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                      previewDevice === 'mobile' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Smartphone size={13} /> Mobile
+                  </button>
+                </div>
+
                 <button
                   type="button"
-                  onClick={() => setPreviewDevice('desktop')}
-                  className={`flex items-center gap-1 px-3 py-1 text-xs font-medium ${previewDevice === 'desktop' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-                >
-                  <Monitor size={12} /> Desktop (600px)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewDevice('mobile')}
-                  className={`flex items-center gap-1 px-3 py-1 text-xs font-medium ${previewDevice === 'mobile' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-                >
-                  <Smartphone size={12} /> Mobile (380px)
-                </button>
-              </div>
-            </div>
-
-            {/* Email Render Frame */}
-            <div className="flex justify-center bg-gray-100 p-4 rounded-xl border border-gray-200 max-h-[500px] overflow-y-auto">
-              <div 
-                className={`bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden transition-all ${
-                  previewDevice === 'desktop' ? 'w-full max-w-xl' : 'w-80'
-                }`}
-              >
-                <div 
-                  className="p-4 text-xs"
-                  dangerouslySetInnerHTML={{ 
-                    __html: emailHtml.replace(/{{first_name}}/g, 'Selva').replace(/{{company}}/g, 'LeadA360') 
+                  onClick={() => {
+                    const win = window.open('', '_blank');
+                    if (win) {
+                      win.document.write(renderedHtml);
+                      win.document.close();
+                    }
                   }}
-                />
+                  className="px-2.5 py-1 text-xs font-medium text-slate-600 hover:text-blue-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-1 shadow-2xs"
+                  title="Open full email in new tab"
+                >
+                  <ExternalLink size={12} /> New Tab
+                </button>
               </div>
             </div>
 
-            <div className="flex justify-end pt-2 border-t border-gray-100">
-              <button onClick={() => setShowMailPreview(false)} className="btn-secondary">
-                Close
+            {/* Email Canvas Preview Area */}
+            <div className="bg-slate-100/90 p-6 flex justify-center items-start min-h-[580px] max-h-[70vh] overflow-y-auto">
+              {previewDevice === 'desktop' ? (
+                <div className="w-full max-w-[650px] bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden transition-all">
+                  <iframe
+                    srcDoc={renderedHtml}
+                    title="Email Desktop Preview"
+                    className="w-full h-[600px] border-0 block"
+                    sandbox="allow-same-origin allow-popups"
+                  />
+                </div>
+              ) : (
+                /* Mobile Smartphone Frame */
+                <div className="w-[375px] bg-slate-900 rounded-[36px] p-3 shadow-2xl border-4 border-slate-800 transition-all my-2">
+                  <div className="flex justify-center mb-2">
+                    <div className="w-24 h-4 bg-slate-950 rounded-full flex items-center justify-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-slate-800"></div>
+                      <div className="w-8 h-1 rounded-full bg-slate-800"></div>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-[24px] overflow-hidden shadow-inner h-[560px]">
+                    <iframe
+                      srcDoc={renderedHtml}
+                      title="Email Mobile Preview"
+                      className="w-full h-full border-0 block"
+                      sandbox="allow-same-origin allow-popups"
+                    />
+                  </div>
+                  <div className="flex justify-center mt-2.5">
+                    <div className="w-28 h-1 bg-slate-600 rounded-full"></div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer note & Close */}
+            <div className="px-5 py-3 bg-white border-t border-slate-200 flex justify-between items-center">
+              <span className="text-[11px] text-slate-400">
+                Preview rendered with sample recipient merge tags (Dr. Selva | NVRON Life Science Ltd)
+              </span>
+              <button 
+                type="button" 
+                onClick={() => setShowMailPreview(false)} 
+                className="btn-secondary text-xs px-4 py-1.5"
+              >
+                Close Preview
               </button>
             </div>
           </div>
