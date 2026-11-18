@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Sum
+from django.utils import timezone
 from .models import Campaign, CampaignStatus, CampaignDispatch, EmailTemplate
 from .serializers import CampaignSerializer, CampaignDispatchSerializer, EmailTemplateSerializer
 from .tasks import prepare_campaign_chunks
@@ -285,7 +286,12 @@ class CampaignViewSet(viewsets.ModelViewSet):
         dispatches = CampaignDispatch.objects.filter(campaign=campaign).select_related('contact').order_by('-sent_at')
         recipients_list = []
         for d in dispatches:
-            local_sent = timezone.localtime(d.sent_at) if d.sent_at else None
+            try:
+                local_sent = timezone.localtime(d.sent_at) if d.sent_at else None
+                formatted_time = local_sent.strftime('%Y-%m-%d %I:%M:%S %p IST') if local_sent else '—'
+            except Exception:
+                formatted_time = str(d.sent_at) if d.sent_at else '—'
+
             recipients_list.append({
                 'id': str(d.id),
                 'email': d.contact.email if d.contact else '—',
@@ -293,7 +299,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
                 'company': d.contact.company if d.contact else '—',
                 'status': d.status,
                 'ses_message_id': d.ses_message_id or '—',
-                'sent_at': local_sent.strftime('%Y-%m-%d %I:%M:%S %p IST') if local_sent else '—',
+                'sent_at': formatted_time,
                 'error_message': d.error_message or '',
             })
 
