@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Plus, Search, Upload, Filter, Users, RefreshCw, Trash2, Edit, 
   CheckCircle2, AlertCircle, FileSpreadsheet, Download, X, ArrowRight, Eye
@@ -79,8 +79,20 @@ export default function Contacts() {
   const [viewingList, setViewingList] = useState(null);
   const [listContactsLoading, setListContactsLoading] = useState(false);
   const [listContactsData, setListContactsData] = useState([]);
+  const [listContactSearch, setListContactSearch] = useState('');
   const [listModalPage, setListModalPage] = useState(1);
   const [listModalPageSize, setListModalPageSize] = useState(25);
+
+  const filteredListContacts = useMemo(() => {
+    if (!listContactSearch.trim()) return listContactsData;
+    const q = listContactSearch.trim().toLowerCase();
+    return listContactsData.filter(c => {
+      const email = (c.email || '').toLowerCase();
+      const name = `${c.first_name || c.firstName || ''} ${c.last_name || c.lastName || ''}`.toLowerCase();
+      const company = (c.company || '').toLowerCase();
+      return email.includes(q) || name.includes(q) || company.includes(q);
+    });
+  }, [listContactsData, listContactSearch]);
 
   // Form states for adding contact
   const [newEmail, setNewEmail] = useState('');
@@ -168,6 +180,7 @@ export default function Contacts() {
   const handleOpenListContacts = async (list) => {
     setViewingList(list);
     setListContactsLoading(true);
+    setListContactSearch('');
     setListModalPage(1);
     try {
       const data = await api.contacts.list({ list_id: list.id, page_size: 10000 });
@@ -608,7 +621,10 @@ export default function Contacts() {
       {viewingList && (
         <Modal 
           title={`Contacts in "${viewingList.name}"`} 
-          onClose={() => setViewingList(null)} 
+          onClose={() => {
+            setViewingList(null);
+            setListContactSearch('');
+          }} 
           size="lg"
         >
           <div className="p-4 space-y-3">
@@ -622,6 +638,33 @@ export default function Contacts() {
                   {listContactsData.length.toLocaleString()} Contact{listContactsData.length === 1 ? '' : 's'}
                 </span>
               </div>
+            </div>
+
+            {/* Search Bar for List Contacts */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+              <input
+                type="text"
+                placeholder="Search contacts in this list by email, name, or company..."
+                value={listContactSearch}
+                onChange={(e) => {
+                  setListContactSearch(e.target.value);
+                  setListModalPage(1);
+                }}
+                className="w-full pl-9 pr-8 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              />
+              {listContactSearch && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setListContactSearch('');
+                    setListModalPage(1);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full hover:bg-gray-100"
+                >
+                  ✕
+                </button>
+              )}
             </div>
 
             <div className="max-h-[350px] overflow-y-auto border border-gray-200 rounded-lg">
@@ -645,14 +688,14 @@ export default function Contacts() {
                         </div>
                       </td>
                     </tr>
-                  ) : listContactsData.length === 0 ? (
+                  ) : filteredListContacts.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-8 text-center text-xs text-gray-400">
-                        No contacts found inside this list.
+                        {listContactSearch ? `No contacts found matching "${listContactSearch}".` : 'No contacts found inside this list.'}
                       </td>
                     </tr>
                   ) : (
-                    listContactsData
+                    filteredListContacts
                       .slice((listModalPage - 1) * listModalPageSize, listModalPage * listModalPageSize)
                       .map(c => {
                         const name = [c.first_name || c.firstName, c.last_name || c.lastName].filter(Boolean).join(' ') || '-';
@@ -677,11 +720,11 @@ export default function Contacts() {
               </table>
             </div>
 
-            {listContactsData.length > 0 && (
+            {filteredListContacts.length > 0 && (
               <Pagination
                 currentPage={listModalPage}
-                totalPages={Math.ceil(listContactsData.length / listModalPageSize) || 1}
-                totalItems={listContactsData.length}
+                totalPages={Math.ceil(filteredListContacts.length / listModalPageSize) || 1}
+                totalItems={filteredListContacts.length}
                 pageSize={listModalPageSize}
                 onPageChange={setListModalPage}
                 onPageSizeChange={size => {
@@ -699,6 +742,7 @@ export default function Contacts() {
                 onClick={() => {
                   const targetId = viewingList.id;
                   setViewingList(null);
+                  setListContactSearch('');
                   setImportTargetListId(targetId);
                   setImportStep(1);
                   setShowImport(true);
@@ -709,7 +753,10 @@ export default function Contacts() {
               </button>
               <button
                 type="button"
-                onClick={() => setViewingList(null)}
+                onClick={() => {
+                  setViewingList(null);
+                  setListContactSearch('');
+                }}
                 className="btn-primary text-xs"
               >
                 Done

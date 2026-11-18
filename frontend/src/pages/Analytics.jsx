@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   ArrowLeft, Mail, Users, MousePointer, TrendingUp, AlertTriangle, 
-  UserMinus, RefreshCw, CheckCircle2, ShieldCheck, Eye, X, Monitor, Smartphone, Send
+  UserMinus, RefreshCw, CheckCircle2, ShieldCheck, Eye, X, Monitor, Smartphone, Send, Search
 } from 'lucide-react';
 import StatusBadge from '../components/common/StatusBadge';
 import StatCard from '../components/common/StatCard';
 import Modal from '../components/common/Modal';
+import Pagination from '../components/common/Pagination';
 import { api } from '../services/api';
 
 export default function Analytics({ campaign, setActivePage }) {
@@ -76,6 +77,27 @@ export default function Analytics({ campaign, setActivePage }) {
   const bounceRate = stats?.bounce_rate_percent ?? (denominator > 0 ? ((bounces / denominator) * 100).toFixed(2) : '0');
 
   const recipientsDispatched = stats?.recipients_dispatched || [];
+  const [dispatchSearch, setDispatchSearch] = useState('');
+  const [dispatchPage, setDispatchPage] = useState(1);
+  const [dispatchPageSize, setDispatchPageSize] = useState(25);
+
+  const filteredDispatches = useMemo(() => {
+    if (!dispatchSearch.trim()) return recipientsDispatched;
+    const q = dispatchSearch.trim().toLowerCase();
+    return recipientsDispatched.filter(r => 
+      (r.email || '').toLowerCase().includes(q) ||
+      (r.name || '').toLowerCase().includes(q) ||
+      (r.company || '').toLowerCase().includes(q) ||
+      (r.status || '').toLowerCase().includes(q) ||
+      (r.ses_message_id || '').toLowerCase().includes(q) ||
+      (r.error_message || '').toLowerCase().includes(q)
+    );
+  }, [recipientsDispatched, dispatchSearch]);
+
+  const paginatedDispatches = useMemo(() => {
+    const start = (dispatchPage - 1) * dispatchPageSize;
+    return filteredDispatches.slice(start, start + dispatchPageSize);
+  }, [filteredDispatches, dispatchPage, dispatchPageSize]);
   const emailHtml = stats?.compiled_html || campaign.compiled_html || '<p>No email content found.</p>';
   const emailSubject = stats?.subject || campaign.subject || 'WELCOME TO NVRON LIFE SCIENCE LTD';
   const emailSender = stats?.sender_email || campaign.sender || campaign.sender_email || 'info@nvron.in';
@@ -153,7 +175,7 @@ export default function Analytics({ campaign, setActivePage }) {
 
       {/* Verified Delivery Log Table */}
       <div className="app-card overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white">
+        <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white flex-wrap gap-3">
           <div>
             <div className="flex items-center gap-2">
               <ShieldCheck size={16} className="text-emerald-600" />
@@ -176,61 +198,113 @@ export default function Analytics({ campaign, setActivePage }) {
           </div>
         </div>
 
-        <table className="w-full text-left">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-100 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-              <th className="px-4 py-2.5">Recipient Email</th>
-              <th className="px-3 py-2.5">Contact Name</th>
-              <th className="px-3 py-2.5">Organization</th>
-              <th className="px-3 py-2.5">Delivery Status</th>
-              <th className="px-3 py-2.5">Amazon SES Message ID</th>
-              <th className="px-3 py-2.5">Sent Timestamp</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50 text-xs">
-            {recipientsDispatched.map(r => (
-              <tr key={r.id} className="hover:bg-blue-50/20">
-                <td className="px-4 py-3 font-medium text-blue-600">
-                  {r.email}
-                </td>
-                <td className="px-3 py-3 text-gray-700">
-                  {r.name || '—'}
-                </td>
-                <td className="px-3 py-3 text-gray-600">
-                  {r.company || '—'}
-                </td>
-                <td className="px-3 py-3">
-                  {r.status === 'SENT' ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-                      <CheckCircle2 size={11} className="text-emerald-600" /> Delivered (SES)
-                    </span>
-                  ) : r.status === 'FAILED' ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded" title={r.error_message}>
-                      Failed: {r.error_message || 'SES error'}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
-                      In Queue ({r.status})
-                    </span>
-                  )}
-                </td>
-                <td className="px-3 py-3 font-mono text-[10px] text-gray-500 max-w-xs truncate" title={r.ses_message_id}>
-                  {r.ses_message_id}
-                </td>
-                <td className="px-3 py-3 text-gray-500 text-[11px]">
-                  {r.sent_at}
-                </td>
-              </tr>
-            ))}
-            {recipientsDispatched.length === 0 && (
-              <tr>
-                <td colSpan={6} className="py-8 text-center text-xs text-gray-400">
-                  {loading ? 'Connecting to AWS RDS...' : 'No recipient dispatches found for this campaign.'}
-                </td>
-              </tr>
+        {/* Search Bar for Recipient Delivery Log */}
+        <div className="p-3 bg-gray-50/70 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[280px] max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+            <input
+              type="text"
+              placeholder="Search recipient email, contact name, or status (e.g. sent, failed, gmail)..."
+              value={dispatchSearch}
+              onChange={(e) => {
+                setDispatchSearch(e.target.value);
+                setDispatchPage(1);
+              }}
+              className="w-full pl-9 pr-8 py-1.5 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
+            />
+            {dispatchSearch && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDispatchSearch('');
+                  setDispatchPage(1);
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full hover:bg-gray-100"
+              >
+                ✕
+              </button>
             )}
-          </tbody>
-        </table>
+          </div>
+          <div className="text-xs text-gray-500 flex items-center gap-2">
+            <span>
+              Showing <span className="font-semibold text-gray-700">{filteredDispatches.length.toLocaleString()}</span> of {recipientsDispatched.length.toLocaleString()} recipients
+            </span>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                <th className="px-4 py-2.5">Recipient Email</th>
+                <th className="px-3 py-2.5">Contact Name</th>
+                <th className="px-3 py-2.5">Organization</th>
+                <th className="px-3 py-2.5">Delivery Status</th>
+                <th className="px-3 py-2.5">Amazon SES Message ID</th>
+                <th className="px-3 py-2.5">Sent Timestamp</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50 text-xs">
+              {paginatedDispatches.map(r => (
+                <tr key={r.id} className="hover:bg-blue-50/20">
+                  <td className="px-4 py-3 font-medium text-blue-600">
+                    {r.email}
+                  </td>
+                  <td className="px-3 py-3 text-gray-700">
+                    {r.name || '—'}
+                  </td>
+                  <td className="px-3 py-3 text-gray-600">
+                    {r.company || '—'}
+                  </td>
+                  <td className="px-3 py-3">
+                    {r.status === 'SENT' ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                        <CheckCircle2 size={11} className="text-emerald-600" /> Delivered (SES)
+                      </span>
+                    ) : r.status === 'FAILED' ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded" title={r.error_message}>
+                        Failed: {r.error_message || 'SES error'}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                        In Queue ({r.status})
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-3 font-mono text-[10px] text-gray-500 max-w-xs truncate" title={r.ses_message_id}>
+                    {r.ses_message_id}
+                  </td>
+                  <td className="px-3 py-3 text-gray-500 text-[11px]">
+                    {r.sent_at}
+                  </td>
+                </tr>
+              ))}
+              {filteredDispatches.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-xs text-gray-400">
+                    {dispatchSearch ? `No recipient found matching "${dispatchSearch}".` : (loading ? 'Connecting to AWS RDS...' : 'No recipient dispatches found for this campaign.')}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {filteredDispatches.length > 0 && (
+          <Pagination
+            currentPage={dispatchPage}
+            totalPages={Math.ceil(filteredDispatches.length / dispatchPageSize) || 1}
+            totalItems={filteredDispatches.length}
+            pageSize={dispatchPageSize}
+            onPageChange={setDispatchPage}
+            onPageSizeChange={(newSize) => {
+              setDispatchPageSize(newSize);
+              setDispatchPage(1);
+            }}
+            pageSizeOptions={[25, 50, 100, 250]}
+            itemName="recipients"
+          />
+        )}
       </div>
 
       {/* Campaign Details Header & Preview Shortcut */}
