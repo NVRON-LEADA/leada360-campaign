@@ -136,7 +136,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
 
         import re
         html = campaign.compiled_html or '<p>No email content set.</p>'
-        html = re.sub(r'<div[^>]*>[\s\S]*?Official Attached Document[\s\S]*?<\/table>\s*<\/div>', '', html, flags=re.IGNORECASE)
+        html = re.sub(r'<div[^>]*padding:\s*14px\s+18px[^>]*>[\s\S]*?<\/table>\s*<\/div>', '', html, flags=re.IGNORECASE)
         html = html.replace('{{first_name}}', 'Test').replace('{{last_name}}', 'User')
         html = html.replace('{{email}}', test_email).replace('{{company}}', 'Test Co')
 
@@ -322,7 +322,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
             'preheader': campaign.preheader,
             'sender_email': campaign.sender_email,
             'sender_name': campaign.sender_name,
-            'compiled_html': re.sub(r'<div[^>]*>[\s\S]*?Official Attached Document[\s\S]*?<\/table>\s*<\/div>', '', campaign.compiled_html or '', flags=re.IGNORECASE),
+            'compiled_html': re.sub(r'<div[^>]*padding:\s*14px\s+18px[^>]*>[\s\S]*?<\/table>\s*<\/div>', '', campaign.compiled_html or '', flags=re.IGNORECASE),
             'status': campaign.status,
             'total_recipients': campaign.total_recipients,
             'sent_count': campaign.sent_count,

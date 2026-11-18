@@ -176,7 +176,7 @@ def _run_dispatch_chunk(campaign_id, contact_ids):
     successful_sends = 0
     import re
     base_template = re.sub(
-        r'<div[^>]*>[\s\S]*?Official Attached Document[\s\S]*?<\/table>\s*<\/div>',
+        r'<div[^>]*padding:\s*14px\s+18px[^>]*>[\s\S]*?<\/table>\s*<\/div>',
         '',
         campaign.compiled_html or '',
         flags=re.IGNORECASE

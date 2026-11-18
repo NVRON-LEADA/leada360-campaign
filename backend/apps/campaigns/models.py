@@ -63,7 +63,7 @@ class Campaign(models.Model):
             return
         import re
         self.compiled_html = re.sub(
-            r'<div[^>]*>[\s\S]*?Official Attached Document[\s\S]*?<\/table>\s*<\/div>',
+            r'<div[^>]*padding:\s*14px\s+18px[^>]*>[\s\S]*?<\/table>\s*<\/div>',
             '',
             self.compiled_html,
             flags=re.IGNORECASE

@@ -4,7 +4,7 @@ import re
 def strip_inbody_attachment_box(apps, schema_editor):
     Campaign = apps.get_model('campaigns', 'Campaign')
     pattern = re.compile(
-        r'<div[^>]*>[\s\S]*?Official Attached Document[\s\S]*?<\/table>\s*<\/div>',
+        r'<div[^>]*padding:\s*14px\s+18px[^>]*>[\s\S]*?<\/table>\s*<\/div>',
         re.IGNORECASE
     )
     for c in Campaign.objects.all():
