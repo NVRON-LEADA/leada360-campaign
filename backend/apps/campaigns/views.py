@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Sum
 from django.utils import timezone
-from .models import Campaign, CampaignStatus, CampaignDispatch, EmailTemplate
+from .models import Campaign, CampaignStatus, CampaignDispatch, EmailTemplate, strip_attachment_box
 from .serializers import CampaignSerializer, CampaignDispatchSerializer, EmailTemplateSerializer
 from .tasks import prepare_campaign_chunks
 from apps.telemetry.models import EmailEvent, EventType
@@ -134,9 +134,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
         from .services import SESClientService
         ses = SESClientService()
 
-        import re
-        html = campaign.compiled_html or '<p>No email content set.</p>'
-        html = re.sub(r'<div[^>]*padding:\s*14px\s+18px[^>]*>[\s\S]*?<\/table>\s*<\/div>', '', html, flags=re.IGNORECASE)
+        html = strip_attachment_box(campaign.compiled_html or '<p>No email content set.</p>')
         html = html.replace('{{first_name}}', 'Test').replace('{{last_name}}', 'User')
         html = html.replace('{{email}}', test_email).replace('{{company}}', 'Test Co')
 
@@ -322,7 +320,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
             'preheader': campaign.preheader,
             'sender_email': campaign.sender_email,
             'sender_name': campaign.sender_name,
-            'compiled_html': re.sub(r'<div[^>]*padding:\s*14px\s+18px[^>]*>[\s\S]*?<\/table>\s*<\/div>', '', campaign.compiled_html or '', flags=re.IGNORECASE),
+            'compiled_html': strip_attachment_box(campaign.compiled_html or ''),
             'status': campaign.status,
             'total_recipients': campaign.total_recipients,
             'sent_count': campaign.sent_count,

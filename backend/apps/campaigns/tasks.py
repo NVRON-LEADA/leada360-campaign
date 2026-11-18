@@ -174,13 +174,8 @@ def _run_dispatch_chunk(campaign_id, contact_ids):
         return
 
     successful_sends = 0
-    import re
-    base_template = re.sub(
-        r'<div[^>]*padding:\s*14px\s+18px[^>]*>[\s\S]*?<\/table>\s*<\/div>',
-        '',
-        campaign.compiled_html or '',
-        flags=re.IGNORECASE
-    )
+    from .models import strip_attachment_box
+    base_template = strip_attachment_box(campaign.compiled_html or '')
     base_url = settings.TRACKING_BASE_URL.rstrip('/')
 
     logger.info(f"[DISPATCH] Campaign '{campaign.title}': sending to {contacts.count()} contacts in this chunk.")

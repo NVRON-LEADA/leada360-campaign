@@ -3,13 +3,13 @@ import re
 
 def strip_inbody_attachment_box(apps, schema_editor):
     Campaign = apps.get_model('campaigns', 'Campaign')
-    pattern = re.compile(
-        r'<div[^>]*padding:\s*14px\s+18px[^>]*>[\s\S]*?<\/table>\s*<\/div>',
-        re.IGNORECASE
-    )
+    p1 = re.compile(r'(<!--.*?-->\s*)?<div[^>]*?>\s*<table[^>]*?>[\s\S]*?Official Attached Document[\s\S]*?<\/table>\s*<\/div>', re.IGNORECASE)
+    p2 = re.compile(r'<div[^>]*padding:\s*14px\s+18px[^>]*>[\s\S]*?<\/table>\s*<\/div>', re.IGNORECASE)
     for c in Campaign.objects.all():
-        if c.compiled_html and 'Official Attached Document' in c.compiled_html:
-            c.compiled_html = pattern.sub('', c.compiled_html)
+        if c.compiled_html and ('Official Attached Document' in c.compiled_html or 'padding: 14px 18px' in c.compiled_html):
+            cleaned = p1.sub('', c.compiled_html)
+            cleaned = p2.sub('', cleaned)
+            c.compiled_html = cleaned
             c.save(update_fields=['compiled_html'])
 
 class Migration(migrations.Migration):

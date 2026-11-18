@@ -2,6 +2,17 @@ import uuid
 from django.db import models
 from apps.contacts.models import Contact, ContactList
 
+import re
+
+def strip_attachment_box(html):
+    if not html:
+        return html
+    p1 = re.compile(r'(<!--.*?-->\s*)?<div[^>]*?>\s*<table[^>]*?>[\s\S]*?Official Attached Document[\s\S]*?<\/table>\s*<\/div>', re.IGNORECASE)
+    html = p1.sub('', html)
+    p2 = re.compile(r'<div[^>]*padding:\s*14px\s+18px[^>]*>[\s\S]*?<\/table>\s*<\/div>', re.IGNORECASE)
+    html = p2.sub('', html)
+    return html
+
 class CampaignStatus(models.TextChoices):
     DRAFT = 'DRAFT', 'Draft'
     SCHEDULED = 'SCHEDULED', 'Scheduled'
@@ -61,13 +72,7 @@ class Campaign(models.Model):
     def clean_compiled_html(self):
         if not self.compiled_html:
             return
-        import re
-        self.compiled_html = re.sub(
-            r'<div[^>]*padding:\s*14px\s+18px[^>]*>[\s\S]*?<\/table>\s*<\/div>',
-            '',
-            self.compiled_html,
-            flags=re.IGNORECASE
-        )
+        self.compiled_html = strip_attachment_box(self.compiled_html)
 
     def save(self, *args, **kwargs):
         self.clean_compiled_html()
