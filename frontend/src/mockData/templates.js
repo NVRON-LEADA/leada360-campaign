@@ -354,27 +354,6 @@ export function generateEmailHtml(template, contentOverrides = {}) {
               ${content.ctaButtonText} &rarr;
             </a>
           </div>` : ''}
-
-          <!-- PDF / File Attachment Download Box -->
-          ${content.attachmentUrl ? `
-          <div style="margin: 24px 0 10px 0; padding: 14px 18px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; text-align: left;">
-            <table border="0" cellpadding="0" cellspacing="0" width="100%">
-              <tr>
-                <td width="36" style="vertical-align: middle; font-size: 24px;">📄</td>
-                <td style="vertical-align: middle; padding-left: 10px;">
-                  <div style="font-size: 13px; font-weight: 700; color: #1e293b;">
-                    ${content.attachmentName || 'Attachment (PDF)'}
-                  </div>
-                  <div style="font-size: 11px; color: #64748b;">Official Attached Document</div>
-                </td>
-                <td align="right" style="vertical-align: middle;">
-                  <a href="${content.attachmentUrl}" target="_blank" style="background-color: #2563eb; color: #ffffff; padding: 7px 14px; text-decoration: none; font-size: 12px; font-weight: 600; border-radius: 5px; display: inline-block;">
-                    Download &darr;
-                  </a>
-                </td>
-              </tr>
-            </table>
-          </div>` : ''}
         </td>
       </tr>
 

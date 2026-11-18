@@ -600,7 +600,7 @@ function Step4({ data, setData }) {
             </div>
 
             <p className="text-[10px] text-gray-500">
-              Attach a PDF product brochure, clinical report, or catalog. It will be delivered both as a clickable in-email download box and as a direct SES email attachment.
+              Attach a PDF product brochure, clinical report, or catalog. It will be delivered as a direct email attachment to recipients.
             </p>
 
             <input
