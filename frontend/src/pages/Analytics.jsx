@@ -98,6 +98,31 @@ export default function Analytics({ campaign, setActivePage }) {
     const start = (dispatchPage - 1) * dispatchPageSize;
     return filteredDispatches.slice(start, start + dispatchPageSize);
   }, [filteredDispatches, dispatchPage, dispatchPageSize]);
+
+  // Convert UTC timestamp to Indian Standard Time (IST)
+  const formatToIST = (rawTime) => {
+    if (!rawTime || rawTime === '—') return '—';
+    if (rawTime.includes('IST')) return rawTime;
+    try {
+      const isoString = (!rawTime.endsWith('Z') && !rawTime.includes('+')) 
+        ? `${rawTime.replace(' ', 'T')}Z` 
+        : rawTime;
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return rawTime;
+      return d.toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+      }) + ' IST';
+    } catch {
+      return rawTime;
+    }
+  };
   const emailHtml = stats?.compiled_html || campaign.compiled_html || '<p>No email content found.</p>';
   const emailSubject = stats?.subject || campaign.subject || 'WELCOME TO NVRON LIFE SCIENCE LTD';
   const emailSender = stats?.sender_email || campaign.sender || campaign.sender_email || 'info@nvron.in';
@@ -274,8 +299,8 @@ export default function Analytics({ campaign, setActivePage }) {
                   <td className="px-3 py-3 font-mono text-[10px] text-gray-500 max-w-xs truncate" title={r.ses_message_id}>
                     {r.ses_message_id}
                   </td>
-                  <td className="px-3 py-3 text-gray-500 text-[11px]">
-                    {r.sent_at}
+                  <td className="px-3 py-3 text-gray-600 text-[11px] whitespace-nowrap font-medium">
+                    {formatToIST(r.sent_at)}
                   </td>
                 </tr>
               ))}

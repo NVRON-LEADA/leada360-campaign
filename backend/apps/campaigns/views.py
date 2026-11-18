@@ -285,6 +285,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
         dispatches = CampaignDispatch.objects.filter(campaign=campaign).select_related('contact').order_by('-sent_at')
         recipients_list = []
         for d in dispatches:
+            local_sent = timezone.localtime(d.sent_at) if d.sent_at else None
             recipients_list.append({
                 'id': str(d.id),
                 'email': d.contact.email if d.contact else '—',
@@ -292,7 +293,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
                 'company': d.contact.company if d.contact else '—',
                 'status': d.status,
                 'ses_message_id': d.ses_message_id or '—',
-                'sent_at': d.sent_at.strftime('%Y-%m-%d %H:%M:%S') if d.sent_at else '—',
+                'sent_at': local_sent.strftime('%Y-%m-%d %I:%M:%S %p IST') if local_sent else '—',
                 'error_message': d.error_message or '',
             })
 
